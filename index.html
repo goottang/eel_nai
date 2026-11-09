@@ -1,0 +1,711 @@
+<!doctype html>
+<html lang="ko" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NovelAI 갤러리</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+<script>
+(function(){try{var t=localStorage.getItem('gal.theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}catch(e){}})();
+</script>
+<style>
+:root{
+  --bg:#f6f6f8;--surface:#fff;--surface2:#f0f0f4;--text:#17171c;--sub:#6a6a78;--line:#e3e3ea;
+  --accent:#4f46e5;--accent-fg:#fff;--accent-soft:rgba(79,70,229,.12);--danger:#d92d20;
+  --shadow:0 1px 2px rgba(20,20,40,.05),0 6px 24px rgba(20,20,40,.06);--ov:rgba(15,15,25,.55);
+}
+:root[data-theme=dark]{
+  --bg:#0d0d11;--surface:#16161c;--surface2:#1f1f27;--text:#ededf2;--sub:#9a9aa8;--line:#2a2a34;
+  --accent:#8f89ff;--accent-fg:#0d0d11;--accent-soft:rgba(143,137,255,.16);--danger:#ff6b61;
+  --shadow:0 1px 2px rgba(0,0,0,.4),0 8px 28px rgba(0,0,0,.35);--ov:rgba(0,0,0,.66);
+}
+*{box-sizing:border-box}
+html{color-scheme:light}
+:root[data-theme=dark]{color-scheme:dark}
+body{margin:0;background:var(--bg);color:var(--text);font-family:'Pretendard Variable',Pretendard,sans-serif;font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3,p{margin:0}
+
+.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+.top-in{max-width:1280px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.brand{font-size:20px;font-weight:800;letter-spacing:-.02em;margin-right:auto}
+.brand small{font-weight:500;color:var(--sub);font-size:13px;margin-left:8px;letter-spacing:0}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:38px;padding:0 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;white-space:nowrap;transition:background .15s,border-color .15s,transform .05s}
+.btn:hover:not(:disabled){background:var(--surface2)}
+.btn:active:not(:disabled){transform:translateY(1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.btn.primary:hover:not(:disabled){background:var(--accent);filter:brightness(1.08)}
+.btn.danger{color:var(--danger)}
+.btn.sm{height:32px;padding:0 11px;font-size:13px;border-radius:8px}
+.btn.icon{width:38px;padding:0}
+.btn svg{width:18px;height:18px}
+
+.wrap{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+.chip{height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:7px}
+.chip .n{font-weight:500;color:var(--sub);font-size:12.5px}
+.chip:hover{background:var(--surface2)}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.chip.on .n{color:inherit;opacity:.75}
+.chip.ghost{border-style:dashed;background:transparent;color:var(--sub)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:16px}
+.card{padding:0;border:1px solid var(--line);background:var(--surface);border-radius:14px;overflow:hidden;text-align:left;display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s;box-shadow:var(--shadow)}
+.card:hover{transform:translateY(-3px)}
+.thumb{position:relative;aspect-ratio:3/4;background:var(--surface2);overflow:hidden}
+.thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;display:block}
+.badge{position:absolute;right:8px;top:8px;height:24px;min-width:24px;padding:0 8px;border-radius:999px;background:rgba(10,10,16,.66);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.meta{padding:10px 12px 12px;min-width:0}
+.ttl{font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sub{font-size:12.5px;color:var(--sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.empty{padding:90px 20px;text-align:center;color:var(--sub)}
+.empty b{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
+.foot{max-width:1280px;margin:0 auto;padding:0 20px 40px;color:var(--sub);font-size:13px;display:flex;gap:14px;align-items:center}
+.foot button{background:none;border:0;padding:0;color:var(--sub);text-decoration:underline;text-underline-offset:3px;font-size:13px}
+
+/* overlays */
+.ov{position:fixed;inset:0;z-index:50;background:var(--ov);display:flex;align-items:center;justify-content:center;padding:18px}
+.dlg{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);width:min(1120px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+.dlg.narrow{width:min(520px,100%)}
+.dlg.mid{width:min(720px,100%)}
+.dh{padding:18px 22px 14px;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:10px}
+.dh-row{display:flex;gap:10px;align-items:flex-start}
+.m-title{font-size:19px;font-weight:800;letter-spacing:-.01em;flex:1;min-width:0;overflow-wrap:anywhere}
+.m-memo{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--text);background:var(--surface2);border-radius:10px;padding:10px 12px;font-size:14px}
+.x{margin-left:auto}
+.in{width:100%;height:38px;padding:0 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);outline:none}
+.in:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+textarea.in{height:auto;padding:9px 12px;resize:vertical;min-height:58px}
+select.in{width:auto;min-width:140px}
+.edit-row{display:flex;gap:8px;flex-wrap:wrap}
+.edit-row .in.title{flex:1;min-width:180px}
+.tb{padding:10px 22px;border-bottom:1px solid var(--line);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.tb .cnt{color:var(--sub);font-size:13.5px;font-weight:600;margin:0 6px}
+.tb .sp{flex:1}
+.db{overflow:auto;padding:18px 22px 22px;flex:1}
+.tiles{columns:3 230px;column-gap:12px}
+.tile{position:relative;margin:0 0 12px;break-inside:avoid;border-radius:12px;overflow:hidden;background:var(--surface2)}
+.tile img{display:block;width:100%;height:auto;cursor:zoom-in}
+.tile.sel{box-shadow:0 0 0 3px var(--accent)}
+.chk{position:absolute;left:9px;top:9px;width:28px;height:28px;border-radius:999px;border:2px solid rgba(255,255,255,.95);background:rgba(10,10,16,.35);color:transparent;display:flex;align-items:center;justify-content:center;padding:0;backdrop-filter:blur(4px)}
+.chk svg{width:16px;height:16px}
+.tile.sel .chk{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+.tag{position:absolute;right:9px;top:9px;height:22px;padding:0 8px;border-radius:999px;background:rgba(10,10,16,.66);color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;pointer-events:none}
+
+.lb{background:rgba(5,5,10,.94);padding:0;border:0;border-radius:0;width:100%;height:100%;max-height:none;color:#fff;position:relative;align-items:center;justify-content:center}
+.dlg.lb{background:transparent;box-shadow:none}
+.lb-img{max-width:calc(100vw - 150px);max-height:calc(100vh - 110px);object-fit:contain;display:block;margin:auto}
+.lb-bar{position:absolute;left:0;right:0;bottom:0;padding:14px 20px;display:flex;gap:12px;align-items:center;justify-content:center;font-size:13.5px;color:#d6d6e0;flex-wrap:wrap}
+.lb-nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border-radius:999px;border:0;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center}
+.lb-nav:hover{background:rgba(255,255,255,.24)}
+.lb-nav svg{width:22px;height:22px}
+.lb-close{position:absolute;right:16px;top:16px;width:44px;height:44px;border-radius:999px;border:0;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center}
+.lb .btn{background:rgba(255,255,255,.12);border-color:transparent;color:#fff}
+
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-size:13px;font-weight:700;color:var(--sub)}
+.hint{font-size:12.5px;color:var(--sub)}
+.pad{padding:20px 22px;overflow:auto}
+.df{padding:14px 22px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center}
+.df .msg{margin-right:auto;color:var(--sub);font-size:13px}
+.drop{border:2px dashed var(--line);border-radius:14px;padding:26px;text-align:center;color:var(--sub);background:var(--surface2)}
+.drop.over{border-color:var(--accent);background:var(--accent-soft)}
+.drop b{color:var(--text)}
+.flist{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:10px;margin-top:14px}
+.fi{position:relative;aspect-ratio:1;border-radius:10px;overflow:hidden;background:var(--surface2)}
+.fi img{width:100%;height:100%;object-fit:cover;display:block}
+.fi button{position:absolute;right:5px;top:5px;width:24px;height:24px;border-radius:999px;border:0;background:rgba(10,10,16,.7);color:#fff;font-size:15px;line-height:1;padding:0}
+.fi .tag{left:5px;right:auto;top:5px}
+.crow{display:flex;gap:6px;margin-bottom:8px;align-items:center}
+.crow .in{flex:1}
+.busy{position:fixed;inset:0;z-index:90;background:var(--ov);display:flex;align-items:center;justify-content:center}
+.busy div{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:22px 28px;font-weight:600;display:flex;gap:14px;align-items:center;box-shadow:var(--shadow);max-width:90vw}
+.spin{width:20px;height:20px;border-radius:50%;border:3px solid var(--line);border-top-color:var(--accent);animation:sp .8s linear infinite;flex:none}
+@keyframes sp{to{transform:rotate(360deg)}}
+.toasts{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:100;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;width:max-content;max-width:92vw}
+.toast{background:#1c1c24;color:#fff;border-radius:12px;padding:11px 16px;font-size:14px;font-weight:500;box-shadow:0 8px 30px rgba(0,0,0,.3);pointer-events:auto}
+.toast.err{background:#b42318}
+:root[data-theme=dark] .toast{background:#ececf2;color:#111}
+:root[data-theme=dark] .toast.err{background:#ff6b61;color:#1a0505}
+@media (max-width:640px){
+  .top-in{padding:12px 14px;gap:8px}.brand{font-size:18px;min-width:0;white-space:nowrap}.brand small{display:none}
+  .top .btn{padding:0 11px;font-size:13px}.top .btn.icon{padding:0;width:38px}
+  .wrap{padding:14px 14px 50px}.grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .ov{padding:0}.dlg{border-radius:0;height:100%;width:100%}.dlg.narrow,.dlg.mid{height:auto;max-height:100%;margin-top:auto;border-radius:18px 18px 0 0}
+  .dh,.tb,.db,.df,.pad{padding-left:14px;padding-right:14px}.tiles{columns:2 140px;column-gap:8px}.tile{margin-bottom:8px}
+  .lb-img{max-width:100vw;max-height:calc(100vh - 150px)}.lb-nav{width:40px;height:40px}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="top-in" id="top"></div></header>
+<main class="wrap">
+  <nav class="cats" id="cats" aria-label="카테고리"></nav>
+  <section id="grid"></section>
+</main>
+<footer class="foot" id="foot"></footer>
+<div class="toasts" id="toasts"></div>
+
+<script>
+'use strict';
+/* ───────── helpers ───────── */
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, attrs, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs || {})) {
+    if (v == null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k === 'style') e.style.cssText = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else if (k in e) { try { e[k] = v; } catch { e.setAttribute(k, v); } }
+    else e.setAttribute(k, v);
+  }
+  for (const c of kids.flat(Infinity)) {
+    if (c == null || c === false) continue;
+    e.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return e;
+}
+const svg = (d, extra = '') => { const s = document.createElement('span'); s.style.display = 'contents'; s.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ${extra}>${d}</svg>`; return s.firstChild; };
+const ICON = {
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5" stroke-width="3"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+  moon: '<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+  left: '<path d="M15 5l-7 7 7 7"/>', right: '<path d="M9 5l7 7-7 7"/>', close: '<path d="M6 6l12 12M18 6L6 18"/>',
+};
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const uid = () => Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(36).padStart(2, '0')).join('').slice(0, 10);
+const clone = o => JSON.parse(JSON.stringify(o));
+const safeName = s => String(s || 'file').replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').slice(0, 120);
+const fmtSize = n => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+
+function toast(msg, { err = false, sticky = false } = {}) {
+  const t = h('div', { class: 'toast' + (err ? ' err' : '') }, msg);
+  $('#toasts').append(t);
+  const api = { set: m => { t.textContent = m; }, close: () => t.remove() };
+  if (!sticky) setTimeout(api.close, err ? 6500 : 3200);
+  return api;
+}
+
+/* ───────── state ───────── */
+const emptyData = () => ({ version: 1, categories: [], posts: [] });
+function loadCfg() { try { return JSON.parse(localStorage.getItem('gal.cfg')) || {}; } catch { return {}; } }
+const S = { data: emptyData(), view: 'all', cfg: loadCfg(), headSha: null, busy: false, postId: null, sel: new Set(), last: null, loadErr: null };
+S.admin = !!S.cfg.token;
+const saveCfg = () => localStorage.setItem('gal.cfg', JSON.stringify(S.cfg));
+const localFiles = new Map(); // path -> original File (this session)
+const blobUrls = new Map();   // path -> object URL (this session)
+
+function normalize(d) {
+  d = d && typeof d === 'object' ? d : {};
+  return { version: 1, categories: Array.isArray(d.categories) ? d.categories : [], posts: Array.isArray(d.posts) ? d.posts.filter(p => p && Array.isArray(p.images) && p.images.length) : [] };
+}
+function inferRepo() {
+  const m = location.hostname.match(/^([^.]+)\.github\.io$/);
+  if (!m) return {};
+  const seg = location.pathname.split('/').filter(Boolean)[0];
+  return { owner: m[1], repo: !seg || seg.endsWith('.html') ? m[1] + '.github.io' : seg };
+}
+function rawUrl(path) {
+  const o = S.cfg.owner ? S.cfg : inferRepo();
+  if (!o.owner) return null;
+  return `https://raw.githubusercontent.com/${o.owner}/${o.repo}/${S.cfg.branch || 'main'}/${path}`;
+}
+const fileUrl = p => blobUrls.get(p) || p;
+function mkImg(path, attrs) {
+  const img = h('img', { ...attrs, loading: 'lazy', decoding: 'async' });
+  img.src = fileUrl(path);
+  let tried = false;
+  img.addEventListener('error', () => { if (tried) return; tried = true; const u = rawUrl(path); if (u) img.src = u; });
+  return img;
+}
+const catName = id => (S.data.categories.find(c => c.id === id) || {}).name;
+const postById = id => S.data.posts.find(p => p.id === id);
+const inView = p => S.view === 'all' || (S.view === 'none' ? !catName(p.category) : p.category === S.view);
+
+/* ───────── overlay stack ───────── */
+const stack = [];
+function openOverlay(build, cls = '') {
+  const back = h('div', { class: 'ov' });
+  const box = h('div', { class: 'dlg ' + cls, role: 'dialog', 'aria-modal': 'true' });
+  back.append(box);
+  const o = { el: box, back, close() { back.remove(); const i = stack.indexOf(o); if (i >= 0) stack.splice(i, 1); if (!stack.length) document.body.style.overflow = ''; if (o.onclose) o.onclose(); } };
+  back.addEventListener('mousedown', e => { if (e.target === back && !S.busy) o.close(); });
+  build(box, o);
+  document.body.append(back);
+  document.body.style.overflow = 'hidden';
+  stack.push(o);
+  return o;
+}
+document.addEventListener('keydown', e => {
+  const top = stack[stack.length - 1];
+  if (!top || S.busy) return;
+  if (e.key === 'Escape') top.close();
+  else if (top.onkey) top.onkey(e);
+});
+
+/* ───────── theme ───────── */
+function setTheme(t) { document.documentElement.dataset.theme = t; try { localStorage.setItem('gal.theme', t); } catch {} renderTop(); }
+
+/* ───────── zip (store, byte-exact) ───────── */
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(u8) { let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function makeZip(entries, onProgress) {
+  if (entries.length > 65535) throw new Error('파일이 너무 많아요 (최대 65535개)');
+  const enc = new TextEncoder(), parts = [], central = [];
+  const d = new Date();
+  const dt = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  const dd = ((Math.max(d.getFullYear(), 1980) - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+  let off = 0;
+  for (let i = 0; i < entries.length; i++) {
+    const { name, blob } = entries[i];
+    const nb = enc.encode(name);
+    const size = blob.size;
+    const crc = crc32(new Uint8Array(await blob.arrayBuffer()));
+    if (size > 0xFFFFFFFF || off > 0xFFFFFFFF) throw new Error('ZIP이 4GB를 넘어요. 나눠서 받아 주세요.');
+    const lh = new DataView(new ArrayBuffer(30));
+    lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+    lh.setUint16(10, dt, true); lh.setUint16(12, dd, true); lh.setUint32(14, crc, true); lh.setUint32(18, size, true); lh.setUint32(22, size, true);
+    lh.setUint16(26, nb.length, true); lh.setUint16(28, 0, true);
+    parts.push(lh.buffer, nb, blob);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+    ch.setUint16(12, dt, true); ch.setUint16(14, dd, true); ch.setUint32(16, crc, true); ch.setUint32(20, size, true); ch.setUint32(24, size, true);
+    ch.setUint16(28, nb.length, true); ch.setUint32(42, off, true);
+    central.push(ch.buffer, nb);
+    off += 30 + nb.length + size;
+    if (onProgress) onProgress(i + 1, entries.length);
+  }
+  const cdSize = central.reduce((a, b) => a + (b.byteLength !== undefined ? b.byteLength : b.length), 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true); end.setUint16(8, entries.length, true); end.setUint16(10, entries.length, true);
+  end.setUint32(12, cdSize, true); end.setUint32(16, off, true);
+  return new Blob([...parts, ...central, end.buffer], { type: 'application/zip' });
+}
+function saveBlob(blob, name) {
+  const a = h('a', { href: URL.createObjectURL(blob), download: name, style: 'display:none' });
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+}
+/** original bytes, never re-encoded */
+async function fetchOriginal(im) {
+  const f = localFiles.get(im.path);
+  if (f) return f;
+  let res;
+  try { res = await fetch(im.path); if (!res.ok) throw 0; }
+  catch {
+    const u = rawUrl(im.path);
+    if (!u) throw new Error('이미지를 불러오지 못했어요: ' + im.name);
+    res = await fetch(u);
+    if (!res.ok) throw new Error('이미지를 불러오지 못했어요: ' + im.name);
+  }
+  return await res.blob();
+}
+function uniqueNames(list) {
+  const seen = new Map();
+  return list.map(n => {
+    const k = n.toLowerCase();
+    const c = (seen.get(k) || 0) + 1; seen.set(k, c);
+    if (c === 1) return n;
+    const i = n.lastIndexOf('.');
+    return i > 0 ? `${n.slice(0, i)} (${c})${n.slice(i)}` : `${n} (${c})`;
+  });
+}
+async function downloadImages(imgs, { zip, zipName, prefix }) {
+  const t = toast('준비 중…', { sticky: true });
+  try {
+    const blobs = [];
+    for (let i = 0; i < imgs.length; i++) { t.set(`원본 가져오는 중 ${i + 1}/${imgs.length}`); blobs.push(await fetchOriginal(imgs[i])); }
+    if (zip) {
+      const names = uniqueNames(imgs.map((im, i) => (prefix ? String(i + 1).padStart(3, '0') + '_' : '') + safeName(im.name)));
+      const z = await makeZip(blobs.map((b, i) => ({ name: names[i], blob: b })), (a, b) => t.set(`ZIP 만드는 중 ${a}/${b}`));
+      saveBlob(z, zipName);
+    } else {
+      const names = uniqueNames(imgs.map(im => safeName(im.name)));
+      for (let i = 0; i < blobs.length; i++) { saveBlob(blobs[i], names[i]); await sleep(350); }
+    }
+    t.close(); toast('다운로드를 시작했어요');
+  } catch (e) { t.close(); toast(e.message || String(e), { err: true }); }
+}
+
+/* ───────── GitHub API (admin) ───────── */
+class Conflict extends Error {}
+async function ghFetch(path, { method = 'GET', body, raw } = {}) {
+  const headers = { Authorization: 'Bearer ' + S.cfg.token, Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json' };
+  if (body) headers['Content-Type'] = 'application/json';
+  return fetch('https://api.github.com' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+}
+async function gh(path, opt) {
+  const res = await ghFetch(path, opt);
+  if (!res.ok) {
+    let m = ''; try { m = (await res.json()).message; } catch {}
+    const e = new Error(res.status === 401 ? '토큰이 올바르지 않거나 만료됐어요' : (res.status === 403 || res.status === 404) ? `접근할 수 없어요 (${res.status}) — 저장소 이름과 토큰 권한(Contents: Read and write)을 확인하세요` : (m || 'HTTP ' + res.status));
+    e.status = res.status; throw e;
+  }
+  return res.status === 204 ? null : res.json();
+}
+const repoPath = () => `/repos/${S.cfg.owner}/${S.cfg.repo}`;
+async function loadFromApi() {
+  if (!S.cfg.branch) { S.cfg.branch = (await gh(repoPath())).default_branch; saveCfg(); }
+  const ref = await gh(`${repoPath()}/git/ref/heads/${S.cfg.branch}`);
+  S.headSha = ref.object.sha;
+  const res = await ghFetch(`${repoPath()}/contents/data.json?ref=${S.headSha}`, { raw: true });
+  if (res.status === 404) S.data = emptyData();
+  else if (res.ok) S.data = normalize(JSON.parse(await res.text()));
+  else throw new Error('data.json을 읽지 못했어요 (' + res.status + ')');
+}
+const toB64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
+/** one atomic commit: new/changed files + deletions + data.json */
+async function commitChanges({ upserts = [], deletes = [], data, message }, progress) {
+  const base = repoPath(), branch = S.cfg.branch;
+  const ref = await gh(`${base}/git/ref/heads/${branch}`);
+  if (ref.object.sha !== S.headSha) throw new Conflict('다른 곳에서 먼저 변경됐어요');
+  const parent = await gh(`${base}/git/commits/${ref.object.sha}`);
+  const items = [];
+  const jobs = [...upserts, { path: 'data.json', blob: new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }) }];
+  let done = 0, next = 0;
+  const worker = async () => {
+    while (next < jobs.length) {
+      const j = jobs[next++];
+      const b = await gh(`${base}/git/blobs`, { method: 'POST', body: { content: await toB64(j.blob), encoding: 'base64' } });
+      items.push({ path: j.path, mode: '100644', type: 'blob', sha: b.sha });
+      progress && progress(`GitHub에 올리는 중 ${++done}/${jobs.length}`);
+    }
+  };
+  await Promise.all([worker(), worker(), worker()]);
+  for (const p of deletes) items.push({ path: p, mode: '100644', type: 'blob', sha: null });
+  progress && progress('커밋 만드는 중…');
+  const tree = await gh(`${base}/git/trees`, { method: 'POST', body: { base_tree: parent.tree.sha, tree: items } });
+  const commit = await gh(`${base}/git/commits`, { method: 'POST', body: { message, tree: tree.sha, parents: [ref.object.sha] } });
+  await gh(`${base}/git/refs/heads/${branch}`, { method: 'PATCH', body: { sha: commit.sha } });
+  S.headSha = commit.sha;
+}
+async function withBusy(label, fn) {
+  if (S.busy) return false;
+  S.busy = true;
+  const txt = h('span', null, label);
+  const ov = h('div', { class: 'busy' }, h('div', null, h('i', { class: 'spin' }), txt));
+  document.body.append(ov);
+  try { await fn(m => { txt.textContent = m; }); toast('저장했어요 · 사이트 반영까지 1~2분 걸려요'); return true; }
+  catch (e) {
+    if (e instanceof Conflict) {
+      toast('다른 기기에서 먼저 수정됐어요. 최신 상태로 다시 불러왔으니 다시 시도하세요.', { err: true });
+      try { await loadFromApi(); } catch {}
+      while (stack.length) stack[stack.length - 1].close();
+      renderAll();
+    } else toast(e.message || String(e), { err: true });
+    return false;
+  } finally { S.busy = false; ov.remove(); }
+}
+
+/* ───────── image prep (thumbnail only for display; original untouched) ───────── */
+async function makeThumb(file) {
+  const bmp = await createImageBitmap(file);
+  const s = Math.min(1, 640 / Math.max(bmp.width, bmp.height));
+  const w = Math.max(1, Math.round(bmp.width * s)), hh = Math.max(1, Math.round(bmp.height * s));
+  const c = document.createElement('canvas'); c.width = w; c.height = hh;
+  c.getContext('2d').drawImage(bmp, 0, 0, w, hh);
+  let blob = await new Promise(r => c.toBlob(r, 'image/webp', 0.82));
+  let ext = 'webp';
+  if (!blob || blob.type !== 'image/webp') { blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.85)); ext = 'jpg'; }
+  const out = { blob, ext, w: bmp.width, h: bmp.height };
+  bmp.close && bmp.close();
+  return out;
+}
+function extOf(f) {
+  const m = /\.([a-z0-9]+)$/i.exec(f.name); const e = m ? m[1].toLowerCase() : '';
+  if (['png', 'jpg', 'jpeg', 'webp', 'gif'].includes(e)) return e;
+  return { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/gif': 'gif' }[f.type] || 'png';
+}
+async function prepFiles(files, postId, progress) {
+  const images = [], ups = [];
+  for (let i = 0; i < files.length; i++) {
+    const f = files[i];
+    progress && progress(`썸네일 만드는 중 ${i + 1}/${files.length}`);
+    const t = await makeThumb(f);
+    const base = uid();
+    const path = `images/${postId}/${base}.${extOf(f)}`, thumb = `thumbs/${postId}/${base}.${t.ext}`;
+    images.push({ path, thumb, name: f.name, size: f.size, w: t.w, h: t.h });
+    ups.push({ path, blob: f, keep: true }, { path: thumb, blob: t.blob });
+  }
+  return { images, ups };
+}
+function cacheUploads(ups) { for (const u of ups) { blobUrls.set(u.path, URL.createObjectURL(u.blob)); if (u.keep) localFiles.set(u.path, u.blob); } }
+
+/* ───────── mutations ───────── */
+async function createPost({ title, memo, category, files }) {
+  return withBusy('업로드 준비 중…', async progress => {
+    const id = uid();
+    const { images, ups } = await prepFiles(files, id, progress);
+    const data = clone(S.data);
+    data.posts.unshift({ id, title, memo, category: category || null, created: Date.now(), images });
+    await commitChanges({ upserts: ups, data, message: `게시물 추가 (${files.length}장)` }, progress);
+    cacheUploads(ups); S.data = data;
+  }).then(ok => { if (ok) renderAll(); return ok; });
+}
+async function addImages(postId, files) {
+  return withBusy('업로드 준비 중…', async progress => {
+    const { images, ups } = await prepFiles(files, postId, progress);
+    const data = clone(S.data);
+    data.posts.find(p => p.id === postId).images.push(...images);
+    await commitChanges({ upserts: ups, data, message: `이미지 추가 (${files.length}장)` }, progress);
+    cacheUploads(ups); S.data = data;
+  }).then(ok => { if (ok) renderAll(); return ok; });
+}
+async function saveData(mutate, message) {
+  return withBusy('저장 중…', async progress => {
+    const data = clone(S.data); mutate(data);
+    await commitChanges({ data, message }, progress);
+    S.data = data;
+  }).then(ok => { if (ok) renderAll(); return ok; });
+}
+async function deleteImages(postId, idxs) {
+  return withBusy('삭제 중…', async progress => {
+    const data = clone(S.data);
+    const p = data.posts.find(x => x.id === postId);
+    const del = []; idxs.forEach(i => { del.push(p.images[i].path); if (p.images[i].thumb) del.push(p.images[i].thumb); });
+    p.images = p.images.filter((_, i) => !idxs.includes(i));
+    if (!p.images.length) data.posts = data.posts.filter(x => x.id !== postId);
+    await commitChanges({ deletes: del, data, message: `이미지 삭제 (${idxs.length}장)` }, progress);
+    S.data = data;
+  }).then(ok => { if (ok) { renderAll(); } return ok; });
+}
+async function deletePost(postId) {
+  return withBusy('삭제 중…', async progress => {
+    const data = clone(S.data);
+    const p = data.posts.find(x => x.id === postId);
+    const del = p.images.flatMap(im => [im.path, im.thumb].filter(Boolean));
+    data.posts = data.posts.filter(x => x.id !== postId);
+    await commitChanges({ deletes: del, data, message: '게시물 삭제' }, progress);
+    S.data = data;
+  }).then(ok => { if (ok) renderAll(); return ok; });
+}
+
+/* ───────── render: header / cats / grid ───────── */
+function renderTop() {
+  const t = $('#top'); t.replaceChildren();
+  const posts = S.data.posts.filter(inView);
+  t.append(h('h1', { class: 'brand' }, 'NovelAI 갤러리', h('small', null, `${S.data.posts.length}개 게시물`)));
+  t.append(h('button', { class: 'btn', disabled: !posts.length, title: '현재 목록의 대표 이미지(썸네일) 원본을 ZIP으로 받습니다', onclick: () => downloadImages(posts.map(p => p.images[0]), { zip: true, zipName: 'thumbnails.zip', prefix: true }) }, `썸네일 원본 ZIP (${posts.length})`));
+  if (S.admin) {
+    t.append(h('button', { class: 'btn primary', onclick: openUpload }, '+ 새 게시물'));
+  }
+  const dark = document.documentElement.dataset.theme === 'dark';
+  t.append(h('button', { class: 'btn icon', 'aria-label': dark ? '라이트 모드로 전환' : '다크 모드로 전환', title: dark ? '라이트 모드' : '다크 모드', onclick: () => setTheme(dark ? 'light' : 'dark') }, svg(dark ? ICON.sun : ICON.moon)));
+}
+function renderCats() {
+  const bar = $('#cats'); bar.replaceChildren();
+  const cnt = id => S.data.posts.filter(p => id === 'all' ? true : id === 'none' ? !catName(p.category) : p.category === id).length;
+  const chip = (id, name) => h('button', { class: 'chip' + (S.view === id ? ' on' : ''), onclick: () => { S.view = id; renderAll(); } }, name, h('span', { class: 'n' }, cnt(id)));
+  bar.append(chip('all', '전체'), ...S.data.categories.map(c => chip(c.id, c.name)));
+  if (cnt('none') && S.data.categories.length) bar.append(chip('none', '미분류'));
+  if (S.admin) bar.append(h('button', { class: 'chip ghost', onclick: openCatManager }, '카테고리 관리'));
+}
+function renderGrid() {
+  const g = $('#grid'); g.replaceChildren();
+  if (S.view !== 'all' && S.view !== 'none' && !catName(S.view)) S.view = 'all';
+  const posts = S.data.posts.filter(inView);
+  if (!posts.length) {
+    g.append(h('div', { class: 'empty' }, S.loadErr ? h('b', null, '데이터를 불러오지 못했어요') : h('b', null, '아직 이미지가 없어요'), S.loadErr || (S.admin ? '오른쪽 위 “새 게시물”로 첫 이미지를 올려 보세요.' : '곧 채워질 예정이에요.')));
+    return;
+  }
+  g.append(h('div', { class: 'grid' }, posts.map(p => {
+    const cn = catName(p.category);
+    return h('button', { class: 'card', type: 'button', onclick: () => openPost(p.id) },
+      h('div', { class: 'thumb' }, mkImg(p.images[0].thumb || p.images[0].path, { alt: p.title || '' }), p.images.length > 1 && h('span', { class: 'badge' }, p.images.length)),
+      h('div', { class: 'meta' }, h('div', { class: 'ttl' }, p.title || '제목 없음'), h('div', { class: 'sub' }, cn || '미분류')));
+  })));
+}
+function renderFoot() {
+  const f = $('#foot'); f.replaceChildren();
+  if (S.admin) {
+    f.append(h('span', null, '관리자 모드'), h('button', { onclick: openSettings }, '연결 설정'), h('button', { onclick: () => { if (confirm('이 브라우저에서 관리자 연결을 해제할까요? (토큰이 삭제됩니다)')) { S.cfg = {}; saveCfg(); S.admin = false; location.reload(); } } }, '로그아웃'));
+  } else f.append(h('button', { onclick: openSettings }, '관리자'));
+}
+function renderAll() { renderTop(); renderCats(); renderGrid(); renderFoot(); }
+
+/* ───────── post modal ───────── */
+function openPost(id) {
+  const p = postById(id); if (!p) return;
+  S.postId = id; S.sel = new Set(); S.last = null;
+  const o = openOverlay((box, o) => {
+    const tiles = [];
+    const cntEl = h('span', { class: 'cnt' });
+    const bSel = h('button', { class: 'btn sm', onclick: () => downloadImages(sel().map(i => p.images[i]), { zip: false }) }, '선택 이미지 다운로드');
+    const bZip = h('button', { class: 'btn sm', onclick: () => downloadImages(sel().map(i => p.images[i]), { zip: true, zipName: safeName(p.title || 'images') + '.zip' }) }, '선택 ZIP 다운로드');
+    const bDel = S.admin && h('button', { class: 'btn sm danger', onclick: async () => {
+      const idx = sel(); const all = idx.length === p.images.length;
+      if (!confirm(all ? '모든 이미지를 삭제하면 게시물도 함께 삭제돼요. 계속할까요?' : `선택한 ${idx.length}장을 삭제할까요?`)) return;
+      if (await deleteImages(p.id, idx)) { o.close(); if (!all) openPost(p.id); }
+    } }, '선택 삭제');
+    const sel = () => [...S.sel].sort((a, b) => a - b);
+    const refresh = () => {
+      const n = S.sel.size;
+      cntEl.textContent = `${n}장 선택 / 전체 ${p.images.length}장`;
+      bSel.disabled = bZip.disabled = !n; if (bDel) bDel.disabled = !n;
+      tiles.forEach((t, i) => t.classList.toggle('sel', S.sel.has(i)));
+    };
+    const toggle = (i, shift) => {
+      if (shift && S.last != null) {
+        const [a, b] = [Math.min(S.last, i), Math.max(S.last, i)]; const on = !S.sel.has(i);
+        for (let k = a; k <= b; k++) on ? S.sel.add(k) : S.sel.delete(k);
+      } else S.sel.has(i) ? S.sel.delete(i) : S.sel.add(i);
+      S.last = i; refresh();
+    };
+    p.images.forEach((im, i) => {
+      const img = mkImg(im.path, { alt: im.name, style: im.w && im.h ? `aspect-ratio:${im.w}/${im.h}` : '' });
+      img.addEventListener('click', e => (e.ctrlKey || e.metaKey || e.shiftKey) ? toggle(i, e.shiftKey) : openLightbox(p, i));
+      tiles.push(h('figure', { class: 'tile' }, img,
+        h('button', { class: 'chk', type: 'button', 'aria-label': '선택', onclick: e => { e.stopPropagation(); toggle(i, e.shiftKey); } }, svg(ICON.check)),
+        i === 0 && h('span', { class: 'tag' }, '썸네일')));
+    });
+
+    let head;
+    if (S.admin) {
+      const t = h('input', { class: 'in title', value: p.title || '', placeholder: '제목 (선택)', maxLength: 80 });
+      const m = h('textarea', { class: 'in', placeholder: '짧은 메모 (선택)', maxLength: 300, rows: 2 }, p.memo || '');
+      const c = h('select', { class: 'in' }, h('option', { value: '' }, '미분류'), S.data.categories.map(x => h('option', { value: x.id, selected: x.id === p.category }, x.name)));
+      const save = h('button', { class: 'btn sm primary', onclick: async () => {
+        if (await saveData(d => { const q = d.posts.find(x => x.id === p.id); q.title = t.value.trim(); q.memo = m.value.trim(); q.category = c.value || null; }, '게시물 정보 수정')) { o.close(); openPost(p.id); }
+      } }, '저장');
+      head = h('div', { class: 'dh' }, h('div', { class: 'dh-row' }, h('div', { class: 'edit-row', style: 'flex:1' }, t, c, save), h('button', { class: 'btn sm icon x', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close))), m);
+    } else {
+      head = h('div', { class: 'dh' }, h('div', { class: 'dh-row' }, h('h2', { class: 'm-title' }, p.title || '제목 없음'), h('button', { class: 'btn sm icon x', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close))), p.memo && h('div', { class: 'm-memo' }, p.memo));
+    }
+    const fileIn = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true, style: 'display:none', onchange: async e => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length && await addImages(p.id, fs)) { o.close(); openPost(p.id); } } });
+    const tb = h('div', { class: 'tb' },
+      h('button', { class: 'btn sm', onclick: () => { for (let i = 0; i < p.images.length; i++) S.sel.add(i); refresh(); } }, '전체 선택'),
+      h('button', { class: 'btn sm', onclick: () => { S.sel.clear(); S.last = null; refresh(); } }, '전체 해제'), cntEl,
+      h('span', { class: 'sp' }), bSel, bZip,
+      S.admin && [h('button', { class: 'btn sm', onclick: () => fileIn.click() }, '이미지 추가'), fileIn, bDel,
+        h('button', { class: 'btn sm danger', onclick: async () => { if (confirm('이 게시물과 모든 이미지를 삭제할까요?') && await deletePost(p.id)) o.close(); } }, '게시물 삭제')]);
+    box.append(head, tb, h('div', { class: 'db' }, h('div', { class: 'tiles' }, tiles)));
+    refresh();
+  });
+  o.onclose = () => { S.postId = null; };
+  return o;
+}
+
+/* ───────── lightbox ───────── */
+function openLightbox(p, start) {
+  let i = start;
+  openOverlay((box, o) => {
+    const img = h('img', { class: 'lb-img', alt: '' });
+    const info = h('span'), dl = h('button', { class: 'btn sm', onclick: () => downloadImages([p.images[i]], { zip: false }) }, '원본 다운로드');
+    const show = n => { i = (n + p.images.length) % p.images.length; const im = p.images[i]; img.src = fileUrl(im.path); img.alt = im.name; info.textContent = `${i + 1} / ${p.images.length} · ${im.name}${im.w ? ` · ${im.w}×${im.h}` : ''} · ${fmtSize(im.size || 0)}`; };
+    img.addEventListener('error', () => { const u = rawUrl(p.images[i].path); if (u && img.src !== u) img.src = u; });
+    show(i);
+    const nav = (cls, icon, d, lab) => h('button', { class: 'lb-nav', style: cls, 'aria-label': lab, onclick: e => { e.stopPropagation(); show(i + d); } }, svg(icon));
+    box.append(img, p.images.length > 1 && nav('left:16px', ICON.left, -1, '이전'), p.images.length > 1 && nav('right:16px', ICON.right, 1, '다음'),
+      h('button', { class: 'lb-close', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)), h('div', { class: 'lb-bar' }, info, dl));
+    o.onkey = e => { if (e.key === 'ArrowLeft') show(i - 1); else if (e.key === 'ArrowRight') show(i + 1); };
+    box.addEventListener('mousedown', e => { if (e.target === box) o.close(); });
+  }, 'lb');
+}
+
+/* ───────── upload modal ───────── */
+function openUpload() {
+  const files = [];
+  openOverlay((box, o) => {
+    const list = h('div', { class: 'flist' });
+    const title = h('input', { class: 'in', placeholder: '제목 (선택)', maxLength: 80 });
+    const memo = h('textarea', { class: 'in', placeholder: '짧은 메모 (선택)', maxLength: 300, rows: 2 });
+    const cat = h('select', { class: 'in', style: 'width:100%' }, h('option', { value: '' }, '미분류'), S.data.categories.map(c => h('option', { value: c.id, selected: S.view === c.id }, c.name)));
+    const go = h('button', { class: 'btn primary', disabled: true }, '업로드');
+    const info = h('span', { class: 'msg' }, '이미지를 추가하세요');
+    const draw = () => {
+      list.replaceChildren(...files.map((f, i) => h('div', { class: 'fi' }, h('img', { src: f.url, alt: '' }), i === 0 && h('span', { class: 'tag' }, '썸네일'), h('button', { type: 'button', 'aria-label': '제거', onclick: () => { URL.revokeObjectURL(f.url); files.splice(i, 1); draw(); } }, '×'))));
+      go.disabled = !files.length;
+      info.textContent = files.length ? `${files.length}장 · ${fmtSize(files.reduce((a, f) => a + f.file.size, 0))} · 맨 앞 이미지가 썸네일이 돼요` : '이미지를 추가하세요';
+    };
+    const add = fs => { for (const f of fs) if (/^image\/(png|jpeg|webp|gif)$/.test(f.type)) files.push({ file: f, url: URL.createObjectURL(f) }); draw(); };
+    const input = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp,image/gif', multiple: true, style: 'display:none', onchange: e => { add([...e.target.files]); e.target.value = ''; } });
+    const drop = h('div', { class: 'drop' }, h('b', null, '이미지를 끌어다 놓거나'), ' ', h('button', { class: 'btn sm', type: 'button', onclick: () => input.click() }, '파일 선택'), h('div', { class: 'hint', style: 'margin-top:8px' }, 'NovelAI 원본 파일을 그대로 올려야 메타데이터가 유지돼요 (PNG 권장)'), input);
+    ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', e => add([...e.dataTransfer.files]));
+    go.onclick = async () => {
+      const ok = await createPost({ title: title.value.trim(), memo: memo.value.trim(), category: cat.value, files: files.map(f => f.file) });
+      if (ok) { files.forEach(f => URL.revokeObjectURL(f.url)); o.close(); }
+    };
+    box.append(
+      h('div', { class: 'dh' }, h('div', { class: 'dh-row' }, h('h2', { class: 'm-title' }, '새 게시물'), h('button', { class: 'btn sm icon x', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)))),
+      h('div', { class: 'pad' }, drop, list, h('div', { style: 'height:16px' }),
+        h('div', { class: 'field' }, h('label', null, '제목'), title), h('div', { class: 'field' }, h('label', null, '카테고리'), cat), h('div', { class: 'field' }, h('label', null, '메모'), memo)),
+      h('div', { class: 'df' }, info, h('button', { class: 'btn', onclick: () => o.close() }, '취소'), go));
+  }, 'mid');
+}
+
+/* ───────── category manager ───────── */
+function openCatManager() {
+  const draft = clone(S.data.categories);
+  openOverlay((box, o) => {
+    const rows = h('div'); const nw = h('input', { class: 'in', placeholder: '새 카테고리 이름', maxLength: 30 });
+    const draw = () => rows.replaceChildren(...draft.map((c, i) => h('div', { class: 'crow' },
+      h('input', { class: 'in', value: c.name, maxLength: 30, oninput: e => { c.name = e.target.value; } }),
+      h('button', { class: 'btn sm icon', disabled: i === 0, 'aria-label': '위로', onclick: () => { [draft[i - 1], draft[i]] = [draft[i], draft[i - 1]]; draw(); } }, svg(ICON.left, 'style="transform:rotate(90deg)"')),
+      h('button', { class: 'btn sm icon', disabled: i === draft.length - 1, 'aria-label': '아래로', onclick: () => { [draft[i + 1], draft[i]] = [draft[i], draft[i + 1]]; draw(); } }, svg(ICON.right, 'style="transform:rotate(90deg)"')),
+      h('button', { class: 'btn sm danger', onclick: () => { const n = S.data.posts.filter(p => p.category === c.id).length; if (!n || confirm(`“${c.name}”에 속한 ${n}개 게시물은 미분류가 돼요. 삭제할까요?`)) { draft.splice(i, 1); draw(); } } }, '삭제'))));
+    const addNew = () => { const v = nw.value.trim(); if (!v) return; draft.push({ id: uid(), name: v }); nw.value = ''; draw(); };
+    nw.addEventListener('keydown', e => { if (e.key === 'Enter') addNew(); });
+    draw();
+    box.append(
+      h('div', { class: 'dh' }, h('div', { class: 'dh-row' }, h('h2', { class: 'm-title' }, '카테고리 관리'), h('button', { class: 'btn sm icon x', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)))),
+      h('div', { class: 'pad' }, h('div', { class: 'crow' }, nw, h('button', { class: 'btn sm', onclick: addNew }, '추가')), h('div', { style: 'height:8px' }), rows,
+        h('p', { class: 'hint' }, '게시물의 카테고리는 게시물을 열어 바꿀 수 있어요.')),
+      h('div', { class: 'df' }, h('button', { class: 'btn', onclick: () => o.close() }, '취소'), h('button', { class: 'btn primary', onclick: async () => {
+        const cleaned = draft.map(c => ({ id: c.id, name: c.name.trim() })).filter(c => c.name);
+        const ids = new Set(cleaned.map(c => c.id));
+        if (await saveData(d => { d.categories = cleaned; d.posts.forEach(p => { if (p.category && !ids.has(p.category)) p.category = null; }); }, '카테고리 수정')) o.close();
+      } }, '저장')));
+  }, 'narrow');
+}
+
+/* ───────── admin settings ───────── */
+function openSettings() {
+  const guess = inferRepo();
+  openOverlay((box, o) => {
+    const owner = h('input', { class: 'in', value: S.cfg.owner || guess.owner || '', placeholder: 'GitHub 아이디' });
+    const repo = h('input', { class: 'in', value: S.cfg.repo || guess.repo || '', placeholder: '저장소 이름' });
+    const token = h('input', { class: 'in', type: 'password', value: S.cfg.token || '', placeholder: 'github_pat_…', autocomplete: 'off' });
+    const msg = h('span', { class: 'msg' });
+    const ok = h('button', { class: 'btn primary', onclick: async () => {
+      const cfg = { owner: owner.value.trim(), repo: repo.value.trim(), token: token.value.trim() };
+      if (!cfg.owner || !cfg.repo || !cfg.token) { msg.textContent = '세 칸을 모두 채워 주세요'; return; }
+      ok.disabled = true; msg.textContent = '확인 중…';
+      const prev = S.cfg; S.cfg = cfg;
+      try {
+        const r = await gh(repoPath());
+        if (!(r.permissions && r.permissions.push)) throw new Error('이 토큰에는 쓰기 권한이 없어요. Contents: Read and write를 선택하세요.');
+        S.cfg.branch = r.default_branch; saveCfg(); S.admin = true;
+        await loadFromApi(); o.close(); renderAll(); toast('관리자로 연결됐어요');
+      } catch (e) { S.cfg = prev; msg.textContent = e.message; ok.disabled = false; }
+    } }, '연결');
+    box.append(
+      h('div', { class: 'dh' }, h('div', { class: 'dh-row' }, h('h2', { class: 'm-title' }, '관리자 연결'), h('button', { class: 'btn sm icon x', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)))),
+      h('div', { class: 'pad' },
+        h('div', { class: 'field' }, h('label', null, 'GitHub 아이디'), owner), h('div', { class: 'field' }, h('label', null, '저장소 이름'), repo),
+        h('div', { class: 'field' }, h('label', null, 'Personal access token (fine-grained)'), token,
+          h('span', { class: 'hint' }, '이 저장소 하나만 선택하고 Contents: Read and write 권한만 주세요. 토큰은 이 브라우저에만 저장되고 GitHub 외에는 전송되지 않아요. 공용 PC에서는 사용하지 마세요.'))),
+      h('div', { class: 'df' }, msg, h('button', { class: 'btn', onclick: () => o.close() }, '취소'), ok));
+  }, 'narrow');
+}
+
+/* ───────── boot ───────── */
+(async function boot() {
+  renderAll();
+  try {
+    if (S.admin) { try { await loadFromApi(); } catch (e) { toast('관리자 연결 실패: ' + e.message + ' (공개 데이터로 표시)', { err: true }); } }
+    if (!S.admin || !S.headSha) {
+      const r = await fetch('data.json', { cache: 'no-store' });
+      if (r.ok) S.data = normalize(await r.json()); else if (r.status !== 404) throw new Error('HTTP ' + r.status);
+    }
+  } catch (e) { S.loadErr = location.protocol === 'file:' ? '파일로 직접 열면 동작하지 않아요. GitHub Pages 주소로 접속하세요.' : String(e.message || e); }
+  try { const m = /c=([\w-]+)/.exec(location.hash); if (m) S.view = m[1]; } catch {}
+  renderAll();
+})();
+</script>
+</body>
+</html>
