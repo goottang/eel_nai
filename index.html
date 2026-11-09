@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NovelAI 갤러리</title>
+<title>( ◜𖥦◝ ) HAPPY EEL</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <script>
 (function(){try{var t=localStorage.getItem('gal.theme');if(!t)t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t}catch(e){}})();
@@ -487,7 +487,7 @@ async function deletePost(postId) {
 function renderTop() {
   const t = $('#top'); t.replaceChildren();
   const posts = S.data.posts.filter(inView);
-  t.append(h('h1', { class: 'brand' }, 'NovelAI 갤러리', h('small', null, `${S.data.posts.length}개 게시물`)));
+  t.append(h('h1', { class: 'brand' }, '( ◜𖥦◝ ) HAPPY EEL', h('small', null, `${S.data.posts.length}개 게시물`)));
   t.append(h('button', { class: 'btn', disabled: !posts.length, title: '현재 목록의 대표 이미지(썸네일) 원본을 ZIP으로 받습니다', onclick: () => downloadImages(posts.map(p => p.images[0]), { zip: true, zipName: 'thumbnails.zip', prefix: true }) }, `썸네일 원본 ZIP (${posts.length})`));
   if (S.admin) {
     t.append(h('button', { class: 'btn primary', onclick: openUpload }, '+ 새 게시물'));
