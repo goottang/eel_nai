@@ -1,5 +1,10 @@
 {
-  "version": 1,
-  "categories": [],
-  "posts": []
+ "version": 1,
+ "categories": [
+  {
+   "id": "6w17523o2d",
+   "name": "V5"
+  }
+ ],
+ "posts": []
 }
