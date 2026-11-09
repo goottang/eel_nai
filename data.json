@@ -1,74 +1,49 @@
 {
- "version": 1,
- "categories": [
-  {
-   "id": "6w17523o2d",
-   "name": "V5"
-  },
-  {
-   "id": "3o1f103r0j",
-   "name": "V4.5"
-  }
- ],
- "posts": [
-  {
-   "id": "2v395p4o6k",
-   "title": "",
-   "memo": "",
-   "category": "3o1f103r0j",
-   "created": 1794234386995,
-   "images": [
+  "version": 1,
+  "categories": [
     {
-     "path": "images/2v395p4o6k/164h0f063m.png",
-     "thumb": "thumbs/2v395p4o6k/164h0f063m.webp",
-     "name": "IMG_2840.PNG",
-     "size": 904928,
-     "w": 640,
-     "h": 640
-    }
-   ]
-  },
-  {
-   "id": "3u6a6v1a2u",
-   "title": "",
-   "memo": "",
-   "category": "6w17523o2d",
-   "created": 1794234225695,
-   "images": [
-    {
-     "path": "images/3u6a6v1a2u/31244t5m4e.png",
-     "thumb": "thumbs/3u6a6v1a2u/31244t5m4e.webp",
-     "name": "IMG_2839.PNG",
-     "size": 910303,
-     "w": 640,
-     "h": 640
-    }
-   ]
-  },
-  {
-   "id": "6x1a45733d",
-   "title": "123",
-   "memo": "ㄱㄴㄷ",
-   "category": "6w17523o2d",
-   "created": 1794225609559,
-   "images": [
-    {
-     "path": "images/6x1a45733d/5n524w2w2g.png",
-     "thumb": "thumbs/6x1a45733d/5n524w2w2g.webp",
-     "name": "cffda295-6d1a-4c3e-9b14-2afc87a94ea5.png",
-     "size": 1012958,
-     "w": 832,
-     "h": 1216
+      "id": "6w17523o2d",
+      "name": "V5"
     },
     {
-     "path": "images/6x1a45733d/0j0q5a2l5h.png",
-     "thumb": "thumbs/6x1a45733d/0j0q5a2l5h.webp",
-     "name": "812da3b4-1f55-4e35-a416-611118859c78.png",
-     "size": 1213500,
-     "w": 1024,
-     "h": 1024
+      "id": "3o1f103r0j",
+      "name": "V4.5"
     }
-   ]
-  }
- ]
+  ],
+  "posts": [
+    {
+      "id": "2v395p4o6k",
+      "title": "",
+      "memo": "",
+      "category": "3o1f103r0j",
+      "created": 1794234386995,
+      "images": [
+        {
+          "path": "images/2v395p4o6k/164h0f063m.png",
+          "thumb": "thumbs/2v395p4o6k/164h0f063m.webp",
+          "name": "IMG_2840.PNG",
+          "size": 904928,
+          "w": 640,
+          "h": 640
+        }
+      ]
+    },
+    {
+      "id": "3u6a6v1a2u",
+      "title": "",
+      "memo": "",
+      "category": "6w17523o2d",
+      "created": 1794234225695,
+      "images": [
+        {
+          "path": "images/3u6a6v1a2u/31244t5m4e.png",
+          "thumb": "thumbs/3u6a6v1a2u/31244t5m4e.webp",
+          "name": "IMG_2839.PNG",
+          "size": 910303,
+          "w": 640,
+          "h": 640
+        }
+      ]
+    }
+  ]
 }
