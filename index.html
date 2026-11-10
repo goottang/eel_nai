@@ -71,6 +71,7 @@ h1,h2,h3,p{margin:0}
 .bar2[hidden]{display:none}
 .bar2 .cnt{color:var(--sub);font-size:13.5px;font-weight:600;margin:0 6px}
 .bar2 .sp{flex:1}
+.hint2{font-size:12px;font-weight:300;color:var(--sub);opacity:.85;text-align:right;min-width:0}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:16px}
 .card{padding:0;border:1px solid var(--line);background:var(--surface);border-radius:14px;overflow:hidden;text-align:left;display:flex;flex-direction:column;transition:transform .15s,box-shadow .15s;box-shadow:var(--shadow)}
@@ -140,6 +141,17 @@ select.in{width:auto;min-width:140px}
 .lb-nav svg{width:22px;height:22px}
 .lb-close{position:absolute;right:16px;top:16px;width:44px;height:44px;border-radius:999px;border:0;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center}
 .lb .btn{background:rgba(255,255,255,.12);border-color:transparent;color:#fff}
+.lb.multi .lb-img{max-height:calc(100vh - 200px)}
+.lb-strip{position:absolute;left:0;right:0;bottom:64px;display:flex;gap:6px;align-items:center;justify-content:center;padding:0 12px}
+.lb-th{width:56px;height:56px;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.1);opacity:.6;flex:none;transition:opacity .12s}
+.lb-th:hover{opacity:.9}
+.lb-th.on{opacity:1;border-color:#fff}
+.lb-th img{display:block;width:100%;height:100%;object-fit:cover}
+.lb-pg{width:32px;height:56px;border:0;border-radius:8px;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center;padding:0;flex:none}
+.lb-pg:hover:not(:disabled){background:rgba(255,255,255,.24)}
+.lb-pg:disabled{opacity:.3}
+.lb-pg svg{width:18px;height:18px}
+.lb-pgn{font-size:12px;color:#c9c9d4;margin-left:4px;flex:none}
 
 .field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .field label{font-size:13px;font-weight:700;color:var(--sub)}
@@ -172,7 +184,8 @@ select.in{width:auto;min-width:140px}
   .wrap{padding:14px 14px 50px}.grid{grid-template-columns:repeat(2,1fr);gap:12px}
   .ov{padding:0}.dlg{border-radius:0;height:100%;width:100%}.dlg.narrow,.dlg.mid{height:auto;max-height:100%;margin-top:auto;border-radius:18px 18px 0 0}
   .dh,.tb,.db,.df,.pad{padding-left:14px;padding-right:14px}.tiles{columns:2 140px;column-gap:8px}.tile{margin-bottom:8px}
-  .lb-img{max-width:100vw;max-height:calc(100vh - 150px)}.lb-nav{width:40px;height:40px}
+  .lb-img{max-width:100vw;max-height:calc(100vh - 150px)}.lb.multi .lb-img{max-height:calc(100vh - 220px)}.lb-nav{width:40px;height:40px}
+  .lb-th{width:28px;height:40px}.lb-pg{width:22px;height:40px}.lb-pgn{display:none}.lb-strip{gap:3px;padding:0 6px;bottom:70px}
 }
 </style>
 </head>
@@ -676,7 +689,7 @@ function renderBar() {
   bar.append(
     h('button', { class: 'btn sm', onclick: () => { shown().forEach(p => S.sel.add(p.id)); refreshSel(); } }, '전체 선택'),
     h('button', { class: 'btn sm', onclick: () => { S.sel.clear(); S.last = null; refreshSel(); } }, '전체 해제'),
-    cnt, h('span', { class: 'sp' }), bOne, bZip, bDel || []);
+    cnt, h('span', { class: 'sp' }), h('span', { class: 'hint2' }, '한 게시물에 여러 장의 이미지가 있을 땐 썸네일 이미지만 다운로드됩니다.'), bOne, bZip, bDel || []);
   barRef = { cnt, bOne, bZip, bDel };
   refreshSel();
 }
@@ -716,8 +729,8 @@ function renderGrid() {
       p.images.length > 1 && h('span', { class: 'badge' }, p.images.length));
     return h('div', { class: 'card' + (S.sel.has(p.id) ? ' sel' : ''), 'data-id': p.id }, thumb,
       h('div', { class: 'meta' },
-        p.memo && h('div', { class: 'memo', title: p.memo }, p.memo),
         ptags.length > 0 && h('div', { class: 'tagrow' }, ptags.map(t => h('span', { class: 'tgs', style: `--tc:${tagColor(t)}` }, t.name))),
+        p.memo && h('div', { class: 'memo', title: p.memo }, p.memo),
         S.admin && h('button', { class: 'btn sm editbtn', type: 'button', onclick: () => openEdit(p.id) }, '편집')));
   })));
 }
@@ -779,17 +792,35 @@ function openEdit(id) {
 
 /* ───────── lightbox ───────── */
 function openLightbox(p, start) {
-  let i = start;
+  let i = start, pg = 0;
+  const PER = 10, n = p.images.length, pages = Math.ceil(n / PER);
   openOverlay((box, o) => {
     const img = h('img', { class: 'lb-img', alt: '' });
     img.addEventListener('contextmenu', e => showImgMenu(e, p.images[i]));
     const info = h('span'), dl = h('button', { class: 'btn sm', onclick: () => downloadImages([p.images[i]], { zip: false }) }, '원본 다운로드');
-    const show = n => { i = (n + p.images.length) % p.images.length; const im = p.images[i]; img.src = fileUrl(im.path); img.alt = im.name; info.textContent = `${i + 1} / ${p.images.length} · ${im.name}${im.w ? ` · ${im.w}×${im.h}` : ''} · ${fmtSize(im.size || 0)}`; };
+    const strip = n > 1 ? h('div', { class: 'lb-strip' }) : null;
+    const drawStrip = () => {
+      if (!strip) return;
+      const from = pg * PER, items = p.images.slice(from, from + PER);
+      const mk = (label, d, ico) => h('button', { type: 'button', class: 'lb-pg', 'aria-label': label, disabled: pages < 2 || pg + d < 0 || pg + d >= pages, onclick: e => { e.stopPropagation(); pg += d; drawStrip(); } }, svg(ico));
+      strip.replaceChildren(
+        pages > 1 && mk('이전 썸네일 페이지', -1, ICON.left),
+        ...items.map((im, k) => h('button', { type: 'button', class: 'lb-th' + (from + k === i ? ' on' : ''), 'aria-label': `${from + k + 1}번 이미지`, 'aria-current': from + k === i, onclick: e => { e.stopPropagation(); show(from + k); } }, mkImg(im.thumb || im.path, { alt: '' }))),
+        pages > 1 && mk('다음 썸네일 페이지', 1, ICON.right),
+        pages > 1 && h('span', { class: 'lb-pgn' }, `${pg + 1}/${pages}`));
+    };
+    const show = k => {
+      i = (k + n) % n; pg = Math.floor(i / PER);
+      const im = p.images[i]; img.src = fileUrl(im.path); img.alt = im.name;
+      info.textContent = `${i + 1} / ${n} · ${im.name}${im.w ? ` · ${im.w}×${im.h}` : ''} · ${fmtSize(im.size || 0)}`;
+      drawStrip();
+    };
     img.addEventListener('error', () => { const u = rawUrl(p.images[i].path); if (u && img.src !== u) img.src = u; });
     show(i);
+    if (strip) box.classList.add('multi');
     const nav = (cls, icon, d, lab) => h('button', { class: 'lb-nav', style: cls, 'aria-label': lab, onclick: e => { e.stopPropagation(); show(i + d); } }, svg(icon));
-    box.append(img, p.images.length > 1 && nav('left:16px', ICON.left, -1, '이전'), p.images.length > 1 && nav('right:16px', ICON.right, 1, '다음'),
-      h('button', { class: 'lb-close', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)), h('div', { class: 'lb-bar' }, info, dl));
+    box.append(img, n > 1 && nav('left:16px', ICON.left, -1, '이전'), n > 1 && nav('right:16px', ICON.right, 1, '다음'),
+      h('button', { class: 'lb-close', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)), strip, h('div', { class: 'lb-bar' }, info, dl));
     o.onkey = e => { if (e.key === 'ArrowLeft') show(i - 1); else if (e.key === 'ArrowRight') show(i + 1); };
     box.addEventListener('mousedown', e => { if (e.target === box) o.close(); });
   }, 'lb');
