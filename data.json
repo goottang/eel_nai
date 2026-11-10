@@ -502,42 +502,6 @@
    "tags": [
     "6w17523o2d"
    ]
-  },
-  {
-   "id": "2v395p4o6k",
-   "memo": "4.5 아님",
-   "created": 1794234386995,
-   "images": [
-    {
-     "path": "images/2v395p4o6k/164h0f063m.png",
-     "thumb": "thumbs/2v395p4o6k/164h0f063m.webp",
-     "name": "IMG_2840.PNG",
-     "size": 904928,
-     "w": 640,
-     "h": 640
-    }
-   ],
-   "tags": [
-    "3o1f103r0j"
-   ]
-  },
-  {
-   "id": "3u6a6v1a2u",
-   "memo": "",
-   "created": 1794234225695,
-   "images": [
-    {
-     "path": "images/3u6a6v1a2u/31244t5m4e.png",
-     "thumb": "thumbs/3u6a6v1a2u/31244t5m4e.webp",
-     "name": "IMG_2839.PNG",
-     "size": 910303,
-     "w": 640,
-     "h": 640
-    }
-   ],
-   "tags": [
-    "6w17523o2d"
-   ]
   }
  ]
 }
