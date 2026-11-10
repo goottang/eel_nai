@@ -1,21 +1,21 @@
 {
- "version": 1,
- "categories": [
+ "version": 2,
+ "tags": [
   {
    "id": "6w17523o2d",
-   "name": "V5"
+   "name": "V5",
+   "color": "pink"
   },
   {
    "id": "3o1f103r0j",
-   "name": "V4.5"
+   "name": "V4.5",
+   "color": "peach"
   }
  ],
  "posts": [
   {
    "id": "3c716c3r34",
-   "title": "태그",
    "memo": "마마마",
-   "category": "6w17523o2d",
    "created": 1794239427411,
    "images": [
     {
@@ -498,13 +498,14 @@
      "w": 1024,
      "h": 1024
     }
+   ],
+   "tags": [
+    "6w17523o2d"
    ]
   },
   {
    "id": "2v395p4o6k",
-   "title": "",
    "memo": "4.5 아님",
-   "category": "3o1f103r0j",
    "created": 1794234386995,
    "images": [
     {
@@ -515,13 +516,14 @@
      "w": 640,
      "h": 640
     }
+   ],
+   "tags": [
+    "3o1f103r0j"
    ]
   },
   {
    "id": "3u6a6v1a2u",
-   "title": "",
    "memo": "",
-   "category": "6w17523o2d",
    "created": 1794234225695,
    "images": [
     {
@@ -532,6 +534,9 @@
      "w": 640,
      "h": 640
     }
+   ],
+   "tags": [
+    "6w17523o2d"
    ]
   }
  ]
