@@ -195,12 +195,17 @@ select.in{width:auto;min-width:140px}
   .lb-th{width:28px;height:40px}.lb-pg{width:22px;height:40px}.lb-pgn{display:none}.lb-strip{gap:3px;padding:0 6px;bottom:136px}.lb-bar{gap:8px;padding:12px 12px 14px}.lb-info{flex-basis:100%;text-align:center}
 }
 .lb{padding-right:360px}
-.lb-meta{position:absolute;top:0;right:0;bottom:0;width:360px;background:#17171d;border-left:1px solid #2c2c36;color:#e9e9f0;overflow:auto;padding:72px 18px 22px;text-align:left;cursor:default}
+.lb-meta,.lb-meta *{scrollbar-width:thin;scrollbar-color:#4b4b60 transparent}
+.lb-meta::-webkit-scrollbar{width:10px}
+.lb-meta::-webkit-scrollbar-track{background:transparent;margin:10px 0}
+.lb-meta::-webkit-scrollbar-thumb{background:#4b4b60;border-radius:10px;border:3px solid #17171d}
+.lb-meta::-webkit-scrollbar-thumb:hover{background:#6a6a84}
+.lb-meta{scrollbar-gutter:stable;position:absolute;top:0;right:0;bottom:0;width:360px;background:#17171d;border-left:1px solid #2c2c36;color:#e9e9f0;overflow:auto;padding:72px 18px 22px;text-align:left;cursor:default}
 .lb-meta .mh{display:none}
 .lb-meta .ms{margin-bottom:20px}
 .lb-meta .ml{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:12.5px;font-weight:700;color:#aeaebd;letter-spacing:.02em}
 .lb-meta .ml .btn{height:26px;padding:0 9px;font-size:12px}
-.lb-meta .mt{background:#0e0e13;border:1px solid #2c2c36;border-radius:10px;padding:11px 12px;font-size:13px;line-height:1.6;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;cursor:text;max-height:42vh;overflow:auto}
+.lb-meta .mt{background:#0e0e13;border:1px solid #2c2c36;border-radius:10px;padding:11px 12px;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;cursor:text}
 .lb-meta .mt.none{color:#8c8c9b;font-style:italic;user-select:none}
 .lb-metat{display:none}
 .lb-bar,.lb-strip{right:360px}
@@ -214,7 +219,6 @@ select.in{width:auto;min-width:140px}
   .lb.metaopen .lb-meta{display:block}
   .lb-meta .mh{display:flex;margin-bottom:14px;position:absolute;left:16px;top:14px;margin:0}
   .lb-metat{display:inline-flex}
-  .lb-meta .mt{max-height:none}
 }
 </style>
 </head>
@@ -872,12 +876,61 @@ function pickPrompts(t) {
   }
   return { prompt: prompt.trim(), uc: uc.trim() };
 }
+const hasP = t => { const r = pickPrompts(t); return !!(r.prompt || r.uc); };
+/* WebP / JPEG etc.: look for metadata JSON or A1111-style text inside EXIF / XMP chunks */
+function scanBlob(u8) {
+  const cands = [decodeText(u8).replace(/\0/g, ''), new TextDecoder('utf-16le').decode(u8.subarray(u8.length % 2 ? 1 : 0, u8.length - (u8.length % 2 ? 1 : 0))), (() => { const sw = u8.slice(0, u8.length - (u8.length % 2)); for (let k = 0; k < sw.length; k += 2) { const x = sw[k]; sw[k] = sw[k + 1]; sw[k + 1] = x; } return new TextDecoder('utf-16le').decode(sw); })()];
+  for (const txt of cands) {
+    const i0 = txt.indexOf('{'), i1 = txt.lastIndexOf('}');
+    if (i0 >= 0 && i1 > i0) {
+      try { const o = JSON.parse(txt.slice(i0, i1 + 1)); const t = typeof o.Comment === 'string' ? { ...o } : { Comment: JSON.stringify(o) }; if (hasP(t)) return t; } catch {}
+    }
+    const k = txt.indexOf('Negative prompt:');
+    if (k > 0) { let body = txt; const m = body.search(/UNICODE|ASCII/); if (m >= 0 && m < 200) body = body.slice(m).replace(/^(UNICODE|ASCII)\0*/, ''); return { parameters: body.replace(/^[\x00-\x1f]+/, '').trim() }; }
+  }
+  return null;
+}
+function riffText(buf) {
+  const u = new Uint8Array(buf), dv = new DataView(buf), tag = (p, n) => String.fromCharCode(...u.subarray(p, p + n));
+  if (u.length < 12 || tag(0, 4) !== 'RIFF' || tag(8, 4) !== 'WEBP') return null;
+  let p = 12;
+  while (p + 8 <= u.length) {
+    const type = tag(p, 4), len = dv.getUint32(p + 4, true), a = p + 8, b = Math.min(a + len, u.length);
+    if (type === 'EXIF' || type === 'XMP ') { const t = scanBlob(u.subarray(a, b)); if (t) return t; }
+    p = a + len + (len & 1);
+  }
+  return null;
+}
+/* "stealth" metadata hidden in the alpha channel's lowest bit (NovelAI), survives PNG→lossless WebP */
+async function stealthText(blob) {
+  let bmp; try { bmp = await createImageBitmap(blob); } catch { return null; }
+  const w = bmp.width, hh = bmp.height; if (w * hh > 36e6 || w * hh < 400) return null;
+  const cv = document.createElement('canvas'); cv.width = w; cv.height = hh;
+  const cx = cv.getContext('2d', { willReadFrequently: true }); cx.drawImage(bmp, 0, 0);
+  const px = cx.getImageData(0, 0, w, hh).data; let pos = 0; const maxBits = w * hh;
+  const bit = () => { const x = Math.floor(pos / hh), y = pos % hh; pos++; return px[(y * w + x) * 4 + 3] & 1; };
+  const bytes = n => { const o = new Uint8Array(n); for (let k = 0; k < n; k++) { let v = 0; for (let j = 0; j < 8; j++) v = (v << 1) | bit(); o[k] = v; } return o; };
+  const magic = new TextDecoder().decode(bytes(15));
+  if (magic !== 'stealth_pngcomp' && magic !== 'stealth_pnginfo') return null;
+  const lenB = bytes(4), bits = ((lenB[0] << 24) | (lenB[1] << 16) | (lenB[2] << 8) | lenB[3]) >>> 0;
+  if (!bits || bits > maxBits - pos) return null;
+  let raw = bytes(Math.ceil(bits / 8));
+  if (magic === 'stealth_pngcomp') raw = await (async () => { const st = new Blob([raw]).stream().pipeThrough(new DecompressionStream('gzip')); return new Uint8Array(await new Response(st).arrayBuffer()); })();
+  const o = JSON.parse(new TextDecoder().decode(raw)); const t = {};
+  for (const [k, v] of Object.entries(o)) t[k] = typeof v === 'string' ? v : JSON.stringify(v);
+  return t;
+}
 function loadMeta(im) {
   if (!metaCache.has(im.path)) metaCache.set(im.path, (async () => {
     try {
-      const blob = await fetchOriginal(im), t = await pngText(await blob.arrayBuffer());
-      if (!t) return { err: 'PNG 파일이 아니라서 읽을 수 없어요' };
-      const r = pickPrompts(t); return r.prompt || r.uc ? r : { err: '이 이미지에는 프롬프트 정보가 없어요' };
+      const blob = await fetchOriginal(im), buf = await blob.arrayBuffer();
+      let t = null;
+      try { t = await pngText(buf); } catch {}
+      if (t && hasP(t)) return pickPrompts(t);
+      t = riffText(buf); if (t && hasP(t)) return pickPrompts(t);
+      try { t = await stealthText(blob); } catch { t = null; }
+      if (t && hasP(t)) return pickPrompts(t);
+      return { err: '이 이미지에는 프롬프트 정보가 없어요' };
     } catch { return { err: '정보를 불러오지 못했어요' }; }
   })());
   return metaCache.get(im.path);
