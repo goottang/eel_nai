@@ -12,19 +12,24 @@
    "color": "peach"
   },
   {
-   "id": "6o225u2x40",
-   "name": "만화",
+   "id": "070w6m0t6o",
+   "name": "LD",
    "color": "yellow"
-  },
-  {
-   "id": "531x5f360d",
-   "name": "꾸금",
-   "color": "green"
   },
   {
    "id": "1w44322p3a",
    "name": "치비/SD",
+   "color": "green"
+  },
+  {
+   "id": "6o225u2x40",
+   "name": "만화",
    "color": "sky"
+  },
+  {
+   "id": "531x5f360d",
+   "name": "꾸금",
+   "color": "purple"
   }
  ],
  "posts": [
