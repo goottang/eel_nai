@@ -55,6 +55,10 @@ h1,h2,h3,p{margin:0}
 .btn svg{width:18px;height:18px}
 
 .wrap{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.notice{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:14px;line-height:1.6}
+.notice .nt{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
+.notice .nt.empty{color:var(--sub);font-weight:300}
+.notice .nl{flex:none;font-size:12px;font-weight:600;color:var(--sub);padding-top:2px}
 .cats{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .chip{height:34px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px;display:inline-flex;align-items:center;gap:7px}
 .chip .n{font-weight:500;color:var(--sub);font-size:12.5px}
@@ -144,6 +148,7 @@ select.in{width:auto;min-width:140px}
 .lb-close{position:absolute;right:16px;top:16px;width:44px;height:44px;border-radius:999px;border:0;background:rgba(255,255,255,.12);color:#fff;display:flex;align-items:center;justify-content:center}
 .lb .btn{background:rgba(255,255,255,.12);border-color:transparent;color:#fff}
 .lb.multi .lb-img{max-height:calc(100vh - 200px)}
+.lb-strip[hidden],.lb-bar .btn[hidden]{display:none!important}
 .lb-strip{position:absolute;left:0;right:0;bottom:64px;display:flex;gap:6px;align-items:center;justify-content:center;padding:0 12px}
 .lb-th{width:56px;height:56px;padding:0;border:2px solid transparent;border-radius:8px;overflow:hidden;background:rgba(255,255,255,.1);opacity:.6;flex:none;transition:opacity .12s}
 .lb-th:hover{opacity:.9}
@@ -194,6 +199,7 @@ select.in{width:auto;min-width:140px}
 <body>
 <header class="top"><div class="top-in" id="top"></div></header>
 <main class="wrap">
+  <div id="notice"></div>
   <nav class="cats" id="cats" aria-label="태그"></nav>
   <div class="bar2" id="bar"></div>
   <section id="grid"></section>
@@ -248,7 +254,7 @@ const TAG_COLORS = [
   { k: 'pink', n: '분홍', c: '#ffc2d6' }, { k: 'peach', n: '살구', c: '#ffd5b0' }, { k: 'yellow', n: '노랑', c: '#fff0a3' },
   { k: 'green', n: '초록', c: '#c8ecb3' }, { k: 'sky', n: '하늘', c: '#bde0ff' }, { k: 'purple', n: '보라', c: '#dacbff' }, { k: 'mint', n: '민트', c: '#b3ece0' },
 ];
-const emptyData = () => ({ version: 2, tags: [], posts: [] });
+const emptyData = () => ({ version: 2, notice: '', tags: [], posts: [] });
 function loadCfg() { try { return JSON.parse(localStorage.getItem('gal.cfg')) || {}; } catch { return {}; } }
 const S = { data: emptyData(), filter: new Set(), sel: new Set(), last: null, cfg: loadCfg(), headSha: null, busy: false, loadErr: null, migrated: false };
 S.admin = !!S.cfg.token;
@@ -288,7 +294,7 @@ function normalize(d) {
     const ts = Array.isArray(p.tags) ? p.tags : (category ? [category] : []);
     return { ...rest, tags: [...new Set(ts.map(String).filter(id => ids.has(id)))] };
   });
-  return { version: 2, tags, posts };
+  return { version: 2, notice: typeof d.notice === 'string' ? d.notice.slice(0, 1000) : '', tags, posts };
 }
 function inferRepo() {
   const m = location.hostname.match(/^([^.]+)\.github\.io$/);
@@ -778,7 +784,28 @@ function renderFoot() {
     f.append(h('span', null, '관리자 모드'), h('button', { onclick: openSettings }, '연결 설정'), h('button', { onclick: () => { if (confirm('이 브라우저에서 관리자 연결을 해제할까요? (토큰이 삭제됩니다)')) { S.cfg = {}; saveCfg(); S.admin = false; location.reload(); } } }, '로그아웃'));
   } else f.append(h('button', { onclick: openSettings }, '관리자'));
 }
-function renderAll() { renderTop(); renderTags(); renderBar(); renderGrid(); renderFoot(); }
+function renderNotice() {
+  const el = $('#notice'); el.replaceChildren();
+  const txt = (S.data.notice || '').trim();
+  if (!txt && !S.admin) return;
+  el.append(h('div', { class: 'notice' }, h('span', { class: 'nl' }, '공지'), h('div', { class: 'nt' + (txt ? '' : ' empty') }, txt || '아직 공지가 없어요. 오른쪽 “편집”으로 적을 수 있어요 (방문자에게는 비어 있으면 보이지 않아요).'),
+    S.admin && h('button', { class: 'btn sm', onclick: openNotice }, '편집')));
+}
+function openNotice() {
+  openOverlay((box, o) => {
+    const ta = h('textarea', { class: 'in', maxLength: 1000, rows: 5, placeholder: '방문자에게 보여줄 공지 (줄바꿈 가능, 비우면 공지가 숨겨져요)' }, S.data.notice || '');
+    box.append(
+      h('div', { class: 'dh' }, h('div', { class: 'dh-row' }, h('h2', { class: 'm-title' }, '공지 편집'), h('button', { class: 'btn sm icon x', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)))),
+      h('div', { class: 'pad' }, ta, h('p', { class: 'hint' }, '“저장”을 누르면 대기열에 추가되고, 위쪽 저장 버튼으로 반영돼요.')),
+      h('div', { class: 'df' }, h('button', { class: 'btn', onclick: () => o.close() }, '취소'), h('button', { class: 'btn primary', onclick: async () => {
+        const v = ta.value.trim();
+        if (v !== (S.data.notice || '').trim() && await saveData(d => { d.notice = v; }, '공지 수정')) toast(QUEUED);
+        o.close();
+      } }, '확인')));
+    setTimeout(() => ta.focus(), 50);
+  }, 'mid');
+}
+function renderAll() { renderTop(); renderNotice(); renderTags(); renderBar(); renderGrid(); renderFoot(); }
 
 /* ───────── tag picker (shared) ───────── */
 function tagPicker(picked) {
@@ -829,39 +856,52 @@ function openEdit(id) {
 }
 
 /* ───────── lightbox ───────── */
-function openLightbox(p, start) {
-  let i = start, pg = 0;
-  const PER = 10, n = p.images.length, pages = Math.ceil(n / PER);
+function openLightbox(p0, start) {
+  /* browse through every visible post in grid order: all images of a post, then the next post */
+  const list = shown().some(x => x.id === p0.id) ? shown() : [p0];
+  let pi = list.findIndex(x => x.id === p0.id), i = start, pg = 0;
+  const PER = 10, many = list.length > 1;
+  const total = () => list.reduce((a, x) => a + x.images.length, 0);
   openOverlay((box, o) => {
+    const cur = () => list[pi];
     const img = h('img', { class: 'lb-img', alt: '' });
-    img.addEventListener('contextmenu', e => showImgMenu(e, p.images[i]));
-    const info = h('span', { class: 'lb-info' }), dl = h('button', { class: 'btn sm', onclick: () => downloadImages([p.images[i]], { zip: false }) }, '원본 다운로드');
-    const allName = `${safeName(p.images[0].name).replace(/\.[^.]+$/, '')} 외 ${n - 1}장.zip`;
-    const dlAll = n > 1 ? h('button', { class: 'btn sm', onclick: () => downloadImages(p.images, { zip: true, zipName: allName }) }, '여기 이미지 전부 다운로드') : null;
-    const strip = n > 1 ? h('div', { class: 'lb-strip' }) : null;
+    img.addEventListener('contextmenu', e => showImgMenu(e, cur().images[i]));
+    const info = h('span', { class: 'lb-info' }), dl = h('button', { class: 'btn sm', onclick: () => downloadImages([cur().images[i]], { zip: false }) }, '원본 다운로드');
+    const dlAll = h('button', { class: 'btn sm', onclick: () => { const p = cur(); downloadImages(p.images, { zip: true, zipName: `${safeName(p.images[0].name).replace(/\.[^.]+$/, '')} 외 ${p.images.length - 1}장.zip` }); } }, '여기 이미지 전부 다운로드');
+    const strip = h('div', { class: 'lb-strip' });
     const drawStrip = () => {
-      if (!strip) return;
+      const p = cur(), n = p.images.length, pages = Math.ceil(n / PER);
+      strip.hidden = dlAll.hidden = n < 2; box.classList.toggle('multi', n > 1);
+      if (n < 2) { strip.replaceChildren(); return; }
       const from = pg * PER, items = p.images.slice(from, from + PER);
       const mk = (label, d, ico) => h('button', { type: 'button', class: 'lb-pg', 'aria-label': label, disabled: pages < 2 || pg + d < 0 || pg + d >= pages, onclick: e => { e.stopPropagation(); pg += d; drawStrip(); } }, svg(ico));
       strip.replaceChildren(
         pages > 1 && mk('이전 썸네일 페이지', -1, ICON.left),
-        ...items.map((im, k) => h('button', { type: 'button', class: 'lb-th' + (from + k === i ? ' on' : ''), 'aria-label': `${from + k + 1}번 이미지`, 'aria-current': from + k === i, onclick: e => { e.stopPropagation(); show(from + k); } }, mkImg(im.thumb || im.path, { alt: '' }))),
+        ...items.map((im, k) => h('button', { type: 'button', class: 'lb-th' + (from + k === i ? ' on' : ''), 'aria-label': `${from + k + 1}번 이미지`, 'aria-current': from + k === i, onclick: e => { e.stopPropagation(); show(pi, from + k); } }, mkImg(im.thumb || im.path, { alt: '' }))),
         pages > 1 && mk('다음 썸네일 페이지', 1, ICON.right),
         pages > 1 && h('span', { class: 'lb-pgn' }, `${pg + 1}/${pages}`));
     };
-    const show = k => {
-      i = (k + n) % n; pg = Math.floor(i / PER);
-      const im = p.images[i]; img.src = fileUrl(im.path); img.alt = im.name;
-      info.textContent = `${i + 1} / ${n} · ${im.name}${im.w ? ` · ${im.w}×${im.h}` : ''} · ${fmtSize(im.size || 0)}`;
+    const show = (np, k) => {
+      pi = np; i = k; pg = Math.floor(i / PER);
+      const p = cur(), im = p.images[i];
+      img.src = fileUrl(im.path); img.alt = im.name;
+      info.textContent = `${many ? `게시물 ${pi + 1}/${list.length} · ` : ''}${p.images.length > 1 ? `${i + 1}/${p.images.length} · ` : ''}${im.name}${im.w ? ` · ${im.w}×${im.h}` : ''} · ${fmtSize(im.size || 0)}`;
       drawStrip();
     };
-    img.addEventListener('error', () => { const u = rawUrl(p.images[i].path); if (u && img.src !== u) img.src = u; });
-    show(i);
-    if (strip) box.classList.add('multi');
-    const nav = (cls, icon, d, lab) => h('button', { class: 'lb-nav', style: cls, 'aria-label': lab, onclick: e => { e.stopPropagation(); show(i + d); } }, svg(icon));
-    box.append(img, n > 1 && nav('left:16px', ICON.left, -1, '이전'), n > 1 && nav('right:16px', ICON.right, 1, '다음'),
+    /* step = +1 / -1 across images, then across posts (wraps around at the ends) */
+    const step = d => {
+      let np = pi, k = i + d;
+      if (k >= list[np].images.length) { np = (np + 1) % list.length; k = 0; }
+      else if (k < 0) { np = (np - 1 + list.length) % list.length; k = list[np].images.length - 1; }
+      show(np, k);
+    };
+    img.addEventListener('error', () => { const u = rawUrl(cur().images[i].path); if (u && img.src !== u) img.src = u; });
+    show(pi, i);
+    const nav = (cls, icon, d, lab) => h('button', { class: 'lb-nav', style: cls, 'aria-label': lab, onclick: e => { e.stopPropagation(); step(d); } }, svg(icon));
+    const moreThanOne = total() > 1;
+    box.append(img, moreThanOne && nav('left:16px', ICON.left, -1, '이전'), moreThanOne && nav('right:16px', ICON.right, 1, '다음'),
       h('button', { class: 'lb-close', 'aria-label': '닫기', onclick: () => o.close() }, svg(ICON.close)), strip, h('div', { class: 'lb-bar' }, info, dl, dlAll));
-    o.onkey = e => { if (e.key === 'ArrowLeft') show(i - 1); else if (e.key === 'ArrowRight') show(i + 1); };
+    o.onkey = e => { if (!moreThanOne) return; if (e.key === 'ArrowLeft') step(-1); else if (e.key === 'ArrowRight') step(1); };
     box.addEventListener('mousedown', e => { if (e.target === box) o.close(); });
   }, 'lb');
 }
