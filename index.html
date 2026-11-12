@@ -82,6 +82,7 @@ h1,h2,h3,p{margin:0}
 .thumb:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
 .thumb img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:center 28%;display:block}
 .badge{position:absolute;right:8px;top:8px;height:24px;min-width:24px;padding:0 8px;border-radius:999px;background:rgba(10,10,16,.66);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.pendtag{position:absolute;right:8px;bottom:8px;height:22px;padding:0 9px;border-radius:999px;background:#ffb020;color:#2a1b00;font-size:11.5px;font-weight:800;display:flex;align-items:center;pointer-events:none}
 .sqb{position:absolute;width:32px;height:32px;padding:0;border-radius:8px;border:2px solid rgba(255,255,255,.95);background:rgba(10,10,16,.42);color:#fff;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);transition:background .15s,border-color .15s,color .15s}
 .sqb svg{width:17px;height:17px}
 .sqb:hover{background:rgba(10,10,16,.62)}
@@ -251,6 +252,9 @@ const emptyData = () => ({ version: 2, tags: [], posts: [] });
 function loadCfg() { try { return JSON.parse(localStorage.getItem('gal.cfg')) || {}; } catch { return {}; } }
 const S = { data: emptyData(), filter: new Set(), sel: new Set(), last: null, cfg: loadCfg(), headSha: null, busy: false, loadErr: null, migrated: false };
 S.admin = !!S.cfg.token;
+S.baseJson = null; S.committed = null; S.conflict = false;
+/* unsaved changes: new/changed files, files to delete, and a log of operations */
+const P = { ups: new Map(), dels: new Set(), ops: [], dirty: new Set() };
 const saveCfg = () => localStorage.setItem('gal.cfg', JSON.stringify(S.cfg));
 const localFiles = new Map(); // path -> original File (this session)
 const blobUrls = new Map();   // path -> object URL (this session)
@@ -496,19 +500,27 @@ async function saveImageAs(im) {
 
 /* ───────── GitHub API (admin) ───────── */
 class Conflict extends Error {}
+let waitHook = null;
 async function ghFetch(path, { method = 'GET', body, raw } = {}) {
   const headers = { Authorization: 'Bearer ' + S.cfg.token, Accept: raw ? 'application/vnd.github.raw+json' : 'application/vnd.github+json' };
   if (body) headers['Content-Type'] = 'application/json';
   return fetch('https://api.github.com' + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
 }
 async function gh(path, opt) {
-  const res = await ghFetch(path, opt);
-  if (!res.ok) {
-    let m = ''; try { m = (await res.json()).message; } catch {}
+  for (let attempt = 0; ; attempt++) {
+    const res = await ghFetch(path, opt);
+    if (res.ok) return res.status === 204 ? null : res.json();
+    let m = ''; try { m = (await res.clone().json()).message || ''; } catch {}
+    const ra = Number(res.headers.get('retry-after')) || 0;
+    /* GitHub throttles bursts of writes: wait and continue instead of failing the whole batch */
+    if (attempt < 6 && (res.status === 429 || (res.status === 403 && (ra || /rate limit/i.test(m))))) {
+      const wait = ra || Math.min(90, 20 * (attempt + 1));
+      for (let t = wait; t > 0; t--) { waitHook && waitHook(`GitHub 요청 한도에 걸려 ${t}초 기다리는 중… (자동으로 이어서 진행해요)`); await sleep(1000); }
+      continue;
+    }
     const e = new Error(res.status === 401 ? '토큰이 올바르지 않거나 만료됐어요' : (res.status === 403 || res.status === 404) ? `접근할 수 없어요 (${res.status}) — 저장소 이름과 토큰 권한(Contents: Read and write)을 확인하세요` : (m || 'HTTP ' + res.status));
     e.status = res.status; throw e;
   }
-  return res.status === 204 ? null : res.json();
 }
 const repoPath = () => `/repos/${S.cfg.owner}/${S.cfg.repo}`;
 async function loadFromApi() {
@@ -516,52 +528,58 @@ async function loadFromApi() {
   const ref = await gh(`${repoPath()}/git/ref/heads/${S.cfg.branch}`);
   S.headSha = ref.object.sha;
   const res = await ghFetch(`${repoPath()}/contents/data.json?ref=${S.headSha}`, { raw: true });
-  if (res.status === 404) S.data = emptyData();
-  else if (res.ok) S.data = normalize(JSON.parse(await res.text()));
+  if (res.status === 404) { S.data = emptyData(); S.baseJson = null; }
+  else if (res.ok) { const txt = await res.text(); S.baseJson = txt; S.data = normalize(JSON.parse(txt)); }
   else throw new Error('data.json을 읽지 못했어요 (' + res.status + ')');
+  S.committed = clone(S.data);
 }
 const toB64 = blob => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(',')[1] || ''); r.onerror = () => no(r.error); r.readAsDataURL(blob); });
 /** one atomic commit: new/changed files + deletions + data.json */
-async function commitChanges({ upserts = [], deletes = [], data, message }, progress) {
-  const base = repoPath(), branch = S.cfg.branch;
-  const ref = await gh(`${base}/git/ref/heads/${branch}`);
-  if (ref.object.sha !== S.headSha) throw new Conflict('다른 곳에서 먼저 변경됐어요');
-  const parent = await gh(`${base}/git/commits/${ref.object.sha}`);
-  const items = [];
-  const jobs = [...upserts, { path: 'data.json', blob: new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }) }];
-  let done = 0, next = 0;
-  const worker = async () => {
-    while (next < jobs.length) {
-      const j = jobs[next++];
-      const b = await gh(`${base}/git/blobs`, { method: 'POST', body: { content: await toB64(j.blob), encoding: 'base64' } });
-      items.push({ path: j.path, mode: '100644', type: 'blob', sha: b.sha });
-      progress && progress(`GitHub에 올리는 중 ${++done}/${jobs.length}`);
+async function commitChanges({ upserts = [], deletes = [], data, message, force = false }, progress) {
+  waitHook = progress;
+  try {
+    const base = repoPath(), branch = S.cfg.branch;
+    const ref = await gh(`${base}/git/ref/heads/${branch}`);
+    if (ref.object.sha !== S.headSha) {
+      /* the repo moved (e.g. you uploaded favicon.png on github.com). Only a real change to data.json is a conflict. */
+      if (!force) {
+        const res = await ghFetch(`${base}/contents/data.json?ref=${ref.object.sha}`, { raw: true });
+        const cur = res.status === 404 ? null : res.ok ? await res.text() : undefined;
+        if (cur === undefined || cur !== S.baseJson) throw new Conflict('다른 곳에서 먼저 변경됐어요');
+      }
+      S.headSha = ref.object.sha;
     }
-  };
-  await Promise.all([worker(), worker(), worker()]);
-  for (const p of deletes) items.push({ path: p, mode: '100644', type: 'blob', sha: null });
-  progress && progress('커밋 만드는 중…');
-  const tree = await gh(`${base}/git/trees`, { method: 'POST', body: { base_tree: parent.tree.sha, tree: items } });
-  const commit = await gh(`${base}/git/commits`, { method: 'POST', body: { message, tree: tree.sha, parents: [ref.object.sha] } });
-  await gh(`${base}/git/refs/heads/${branch}`, { method: 'PATCH', body: { sha: commit.sha } });
-  S.headSha = commit.sha;
+    const parent = await gh(`${base}/git/commits/${ref.object.sha}`);
+    const items = [];
+    const json = JSON.stringify(data, null, 1);
+    const jobs = [...upserts, { path: 'data.json', blob: new Blob([json], { type: 'application/json' }) }];
+    let done = 0, next = 0;
+    const worker = async () => {
+      while (next < jobs.length) {
+        const j = jobs[next++];
+        const b = await gh(`${base}/git/blobs`, { method: 'POST', body: { content: await toB64(j.blob), encoding: 'base64' } });
+        items.push({ path: j.path, mode: '100644', type: 'blob', sha: b.sha });
+        progress && progress(`GitHub에 올리는 중 ${++done}/${jobs.length}`);
+      }
+    };
+    await Promise.all([worker(), worker(), worker()]);
+    for (const p of deletes) items.push({ path: p, mode: '100644', type: 'blob', sha: null });
+    progress && progress('커밋 만드는 중…');
+    const tree = await gh(`${base}/git/trees`, { method: 'POST', body: { base_tree: parent.tree.sha, tree: items } });
+    const commit = await gh(`${base}/git/commits`, { method: 'POST', body: { message, tree: tree.sha, parents: [ref.object.sha] } });
+    await gh(`${base}/git/refs/heads/${branch}`, { method: 'PATCH', body: { sha: commit.sha } });
+    S.headSha = commit.sha; S.baseJson = json;
+  } finally { waitHook = null; }
 }
-async function withBusy(label, fn) {
+async function withBusy(label, fn, okMsg) {
   if (S.busy) return false;
   S.busy = true;
   const txt = h('span', null, label);
   const ov = h('div', { class: 'busy' }, h('div', null, h('i', { class: 'spin' }), txt));
   document.body.append(ov);
-  try { await fn(m => { txt.textContent = m; }); toast('저장했어요 · 사이트 반영까지 1~2분 걸려요'); return true; }
-  catch (e) {
-    if (e instanceof Conflict) {
-      toast('다른 기기에서 먼저 수정됐어요. 최신 상태로 다시 불러왔으니 다시 시도하세요.', { err: true });
-      try { await loadFromApi(); } catch {}
-      while (stack.length) stack[stack.length - 1].close();
-      renderAll();
-    } else toast(e.message || String(e), { err: true });
-    return false;
-  } finally { S.busy = false; ov.remove(); }
+  try { await fn(m => { txt.textContent = m; }); if (okMsg) toast(okMsg); return true; }
+  catch (e) { if (e instanceof Conflict) S.conflict = true; else toast(e.message || String(e), { err: true }); return false; }
+  finally { S.busy = false; ov.remove(); }
 }
 
 /* ───────── image prep (thumbnail only for display; original untouched) ───────── */
@@ -599,52 +617,65 @@ async function prepFiles(files, postId, progress) {
 function cacheUploads(ups) { for (const u of ups) { blobUrls.set(u.path, URL.createObjectURL(u.blob)); if (u.keep) localFiles.set(u.path, u.blob); } }
 
 /* ───────── mutations ───────── */
+const QUEUED = '대기열에 추가했어요 · 위쪽 “저장”을 누르면 한꺼번에 반영돼요';
+function pendingSummary() { const c = {}; P.ops.forEach(o => { c[o] = (c[o] || 0) + 1; }); return Object.entries(c).map(([k, v]) => `${k} ${v}`).join(' · '); }
+function clearPending() { P.ups.clear(); P.dels.clear(); P.ops.length = 0; P.dirty.clear(); }
+function forgetFile(path) { const u = blobUrls.get(path); if (u) URL.revokeObjectURL(u); blobUrls.delete(path); localFiles.delete(path); }
+/** a removed file is either never-saved (just drop it) or already in the repo (delete it on save) */
+function dropFiles(paths) { for (const path of paths) { if (!path) continue; if (P.ups.has(path)) { P.ups.delete(path); forgetFile(path); } else P.dels.add(path); } }
+
 async function createPost({ memo, tags, files }) {
-  return withBusy('업로드 준비 중…', async progress => {
+  return withBusy('썸네일 만드는 중…', async progress => {
     const id = uid();
     const { images, ups } = await prepFiles(files, id, progress);
-    const data = clone(S.data);
-    data.posts.unshift({ id, memo, tags, created: Date.now(), images });
-    await commitChanges({ upserts: ups, data, message: `게시물 추가 (${files.length}장)` }, progress);
-    cacheUploads(ups); S.data = data;
-  }).then(ok => { if (ok) renderAll(); return ok; });
+    S.data.posts.unshift({ id, memo, tags, created: Date.now(), images });
+    for (const u of ups) P.ups.set(u.path, u);
+    cacheUploads(ups); P.ops.push('게시물 추가'); P.dirty.add(id);
+  }, QUEUED).then(ok => { if (ok) renderAll(); return ok; });
 }
 async function addImages(postId, files) {
-  return withBusy('업로드 준비 중…', async progress => {
+  return withBusy('썸네일 만드는 중…', async progress => {
     const { images, ups } = await prepFiles(files, postId, progress);
-    const data = clone(S.data);
-    data.posts.find(p => p.id === postId).images.push(...images);
-    await commitChanges({ upserts: ups, data, message: `이미지 추가 (${files.length}장)` }, progress);
-    cacheUploads(ups); S.data = data;
-  }).then(ok => { if (ok) renderAll(); return ok; });
+    postById(postId).images.push(...images);
+    for (const u of ups) P.ups.set(u.path, u);
+    cacheUploads(ups); P.ops.push('이미지 추가'); P.dirty.add(postId);
+  }, QUEUED).then(ok => { if (ok) renderAll(); return ok; });
 }
-async function saveData(mutate, message) {
-  return withBusy('저장 중…', async progress => {
-    const data = clone(S.data); mutate(data);
-    await commitChanges({ data, message }, progress);
-    S.data = data;
-  }).then(ok => { if (ok) renderAll(); return ok; });
-}
+async function saveData(mutate, label) { mutate(S.data); P.ops.push(label); renderAll(); return true; }
 async function deleteImages(postId, idxs) {
-  return withBusy('삭제 중…', async progress => {
-    const data = clone(S.data);
-    const p = data.posts.find(x => x.id === postId);
-    const del = []; idxs.forEach(i => { del.push(p.images[i].path); if (p.images[i].thumb) del.push(p.images[i].thumb); });
-    p.images = p.images.filter((_, i) => !idxs.includes(i));
-    if (!p.images.length) data.posts = data.posts.filter(x => x.id !== postId);
-    await commitChanges({ deletes: del, data, message: `이미지 삭제 (${idxs.length}장)` }, progress);
-    S.data = data;
-  }).then(ok => { if (ok) renderAll(); return ok; });
+  const p = postById(postId); const del = [];
+  idxs.forEach(i => del.push(p.images[i].path, p.images[i].thumb));
+  p.images = p.images.filter((_, i) => !idxs.includes(i));
+  if (!p.images.length) { S.data.posts = S.data.posts.filter(x => x.id !== postId); P.dirty.delete(postId); } else P.dirty.add(postId);
+  dropFiles(del); P.ops.push('이미지 삭제'); renderAll(); return true;
 }
 async function deletePosts(ids) {
-  return withBusy('삭제 중…', async progress => {
-    const data = clone(S.data); const del = [];
-    for (const id of ids) { const p = data.posts.find(x => x.id === id); if (p) p.images.forEach(im => del.push(im.path, im.thumb)); }
-    data.posts = data.posts.filter(x => !ids.includes(x.id));
-    await commitChanges({ deletes: del.filter(Boolean), data, message: `게시물 삭제 (${ids.length}개)` }, progress);
-    S.data = data;
-  }).then(ok => { if (ok) renderAll(); return ok; });
+  const del = [];
+  for (const id of ids) { const p = postById(id); if (p) p.images.forEach(im => del.push(im.path, im.thumb)); P.dirty.delete(id); }
+  S.data.posts = S.data.posts.filter(x => !ids.includes(x.id));
+  dropFiles(del); P.ops.push('게시물 삭제'); renderAll(); return true;
 }
+
+/** commit everything queued so far as ONE commit */
+async function saveAll(force = false) {
+  if (S.busy || !P.ops.length) return false;
+  const summary = pendingSummary();
+  const ok = await withBusy('GitHub에 올리는 중…', progress => commitChanges({
+    upserts: [...P.ups.values()].map(u => ({ path: u.path, blob: u.blob })), deletes: [...P.dels],
+    data: clone(S.data), message: `갤러리 업데이트 (${summary})`, force }, progress), '저장했어요 · 사이트 반영까지 1~2분 걸려요');
+  if (ok) { clearPending(); S.committed = clone(S.data); renderAll(); return true; }
+  if (S.conflict) {
+    S.conflict = false;
+    if (confirm('다른 곳(다른 기기나 GitHub 웹)에서 갤러리 데이터가 먼저 바뀌었어요.\n\n[확인] 내 변경사항으로 덮어쓰기 (다른 곳에서 바뀐 내용은 사라져요)\n[취소] 저장하지 않고 그대로 두기 (변경사항은 유지돼요)')) return saveAll(true);
+  }
+  return false;
+}
+function discardAll() {
+  if (!P.ops.length || !confirm('저장하지 않은 변경사항을 모두 버리고 마지막 저장 상태로 되돌릴까요?')) return;
+  for (const path of P.ups.keys()) forgetFile(path);
+  clearPending(); S.data = clone(S.committed); renderAll(); toast('마지막 저장 상태로 되돌렸어요');
+}
+window.addEventListener('beforeunload', e => { if (S.admin && P.ops.length) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ───────── render: header / cats / grid ───────── */
 const shown = () => S.data.posts.filter(p => [...S.filter].every(id => p.tags.includes(id)));
@@ -659,7 +690,12 @@ function renderTop() {
     h('div', { class: 'dirbar' }, h('span', { class: 'dirlbl' }, '저장 위치'), h('div', { class: 'dirfield' + (dirHandle ? ' on' : ''), title: dirText }, dirText),
       HAS_DIR && h('button', { class: 'btn sm', onclick: pickDir }, dirHandle ? '변경' : '폴더 지정'),
       dirHandle && h('button', { class: 'btn sm', onclick: clearDir }, '해제'))));
-  if (S.admin) t.append(h('button', { class: 'btn primary', onclick: openUpload }, '+ 새 게시물'));
+  if (S.admin) {
+    const n = P.ops.length;
+    t.append(h('button', { class: 'btn', onclick: openUpload }, '+ 새 게시물'));
+    if (n) t.append(h('button', { class: 'btn', title: '저장하지 않은 변경사항을 버립니다', onclick: discardAll }, '되돌리기'));
+    t.append(h('button', { class: 'btn primary', disabled: !n, title: n ? pendingSummary() : '저장할 변경사항이 없어요', onclick: () => saveAll() }, n ? `저장 (${n})` : '저장'));
+  }
   const dark = document.documentElement.dataset.theme === 'dark';
   t.append(h('button', { class: 'btn icon', 'aria-label': dark ? '라이트 모드로 전환' : '다크 모드로 전환', title: dark ? '라이트 모드' : '다크 모드', onclick: () => setTheme(dark ? 'light' : 'dark') }, svg(dark ? ICON.sun : ICON.moon)));
 }
@@ -727,7 +763,8 @@ function renderGrid() {
       mkImg(im.thumb || im.path, { alt: '' }),
       h('button', { class: 'sqb chk', type: 'button', 'aria-label': '선택', 'aria-pressed': S.sel.has(p.id), onclick: e => { e.stopPropagation(); toggleSel(p.id, idx, e.shiftKey); } }, svg(ICON.check)),
       h('button', { class: 'sqb dlb' + (DL.has(im.path) ? ' done' : ''), type: 'button', 'data-path': im.path, 'aria-label': '원본 다운로드', title: '원본 다운로드', onclick: e => { e.stopPropagation(); downloadImages([im], { zip: false }); } }, svg(ICON.down)),
-      p.images.length > 1 && h('span', { class: 'badge' }, p.images.length));
+      p.images.length > 1 && h('span', { class: 'badge' }, p.images.length),
+      P.dirty.has(p.id) && h('span', { class: 'pendtag' }, '저장 전'));
     return h('div', { class: 'card' + (S.sel.has(p.id) ? ' sel' : ''), 'data-id': p.id }, thumb,
       h('div', { class: 'meta' },
         ptags.length > 0 && h('div', { class: 'tagrow' }, ptags.map(t => h('span', { class: 'tgs', style: `--tc:${tagColor(t)}` }, t.name))),
@@ -786,7 +823,7 @@ function openEdit(id) {
         h('button', { class: 'btn danger', style: 'margin-right:auto', onclick: async () => { if (confirm('이 게시물과 모든 이미지를 삭제할까요?') && await deletePosts([p.id])) o.close(); } }, '게시물 삭제'),
         h('button', { class: 'btn', onclick: () => o.close() }, '취소'),
         h('button', { class: 'btn primary', onclick: async () => {
-          if (await saveData(d => { const q = d.posts.find(x => x.id === p.id); q.memo = memo.value.trim(); q.tags = [...picked]; }, '게시물 정보 수정')) o.close();
+          if (await saveData(d => { const q = d.posts.find(x => x.id === p.id); q.memo = memo.value.trim(); q.tags = [...picked]; P.dirty.add(p.id); }, '게시물 편집')) o.close();
         } }, '저장')));
   }, 'mid');
 }
@@ -932,9 +969,10 @@ function openSettings() {
       if (r.ok) S.data = normalize(await r.json()); else if (r.status !== 404) throw new Error('HTTP ' + r.status);
     }
   } catch (e) { S.loadErr = location.protocol === 'file:' ? '파일로 직접 열면 동작하지 않아요. GitHub Pages 주소로 접속하세요.' : String(e.message || e); }
+  if (!S.committed) S.committed = clone(S.data);
   renderAll();
   /* one-time: write the old categories back as tags */
-  if (S.admin && S.headSha && S.migrated) { S.migrated = false; saveData(() => {}, '카테고리를 태그로 변환'); }
+  if (S.admin && S.headSha && S.migrated) { S.migrated = false; await saveData(() => {}, '태그 변환'); await saveAll(); }
 })();
 </script>
 </body>
