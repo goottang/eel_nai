@@ -782,7 +782,7 @@
   },
   {
    "id": "0v015v5f3o",
-   "memo": "",
+   "memo": "태그 미세하게 다름",
    "tags": [
     "6w17523o2d",
     "070w6m0t6o"
@@ -794,6 +794,14 @@
      "thumb": "thumbs/0v015v5f3o/3k2s5m5x3o.webp",
      "name": "de54cd9d-8d7f-4bba-93fc-5d7e2eb627d1.png",
      "size": 2406386,
+     "w": 832,
+     "h": 1216
+    },
+    {
+     "path": "images/0v015v5f3o/4m1w3y6c26.png",
+     "thumb": "thumbs/0v015v5f3o/4m1w3y6c26.webp",
+     "name": "d0660627-21bf-41ca-b214-3c22b5bbbf69.png",
+     "size": 2142343,
      "w": 832,
      "h": 1216
     }
