@@ -29,7 +29,7 @@ button{cursor:pointer}
 h1,h2,h3,p{margin:0}
 
 .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 86%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
-.top-in{max-width:1280px;margin:0 auto;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top-in{max-width:none;margin:0 auto;padding:14px clamp(14px,2.4vw,56px);display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .brandwrap{margin-right:auto;min-width:0;flex:1 1 260px}
 .brand{font-size:20px;font-weight:800;letter-spacing:-.02em}
 .brand small{font-weight:500;color:var(--sub);font-size:13px;margin-left:8px;letter-spacing:0}
@@ -54,7 +54,7 @@ h1,h2,h3,p{margin:0}
 .btn.icon{width:38px;padding:0}
 .btn svg{width:18px;height:18px}
 
-.wrap{max-width:1280px;margin:0 auto;padding:18px 20px 60px}
+.wrap{max-width:none;margin:0 auto;padding:18px clamp(14px,2.4vw,56px) 60px}
 .notice{display:flex;align-items:flex-start;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:14px;line-height:1.6}
 .notice .nt{flex:1;min-width:0;white-space:pre-wrap;overflow-wrap:anywhere}
 .notice .nt.empty{color:var(--sub);font-weight:300}
@@ -112,7 +112,7 @@ h1,h2,h3,p{margin:0}
 .swb.on{border-color:var(--text)}
 .empty{padding:90px 20px;text-align:center;color:var(--sub)}
 .empty b{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
-.foot{max-width:1280px;margin:0 auto;padding:0 20px 40px;color:var(--sub);font-size:13px;display:flex;gap:14px;align-items:center}
+.foot{max-width:none;margin:0 auto;padding:0 clamp(14px,2.4vw,56px) 40px;color:var(--sub);font-size:13px;display:flex;gap:14px;align-items:center}
 .foot button{background:none;border:0;padding:0;color:var(--sub);text-decoration:underline;text-underline-offset:3px;font-size:13px}
 
 /* overlays */
@@ -194,13 +194,14 @@ select.in{width:auto;min-width:140px}
   .lb-img{max-width:100vw;max-height:calc(100vh - 190px)}.lb.multi .lb-img{max-height:calc(100vh - 320px)}.lb-nav{width:40px;height:40px}
   .lb-th{width:28px;height:40px}.lb-pg{width:22px;height:40px}.lb-pgn{display:none}.lb-strip{gap:3px;padding:0 6px;bottom:136px}.lb-bar{gap:8px;padding:12px 12px 14px}.lb-info{flex-basis:100%;text-align:center}
 }
-.lb{padding-right:360px}
+:root{--mw:clamp(270px,28vw,440px)}
+.lb{padding-right:var(--mw)}
 .lb-meta,.lb-meta *{scrollbar-width:thin;scrollbar-color:#4b4b60 transparent}
 .lb-meta::-webkit-scrollbar{width:10px}
 .lb-meta::-webkit-scrollbar-track{background:transparent;margin:10px 0}
 .lb-meta::-webkit-scrollbar-thumb{background:#4b4b60;border-radius:10px;border:3px solid #17171d}
 .lb-meta::-webkit-scrollbar-thumb:hover{background:#6a6a84}
-.lb-meta{scrollbar-gutter:stable;position:absolute;top:0;right:0;bottom:0;width:360px;background:#17171d;border-left:1px solid #2c2c36;color:#e9e9f0;overflow:auto;padding:72px 18px 22px;text-align:left;cursor:default}
+.lb-meta{scrollbar-gutter:stable;position:absolute;top:0;right:0;bottom:0;width:var(--mw);background:#17171d;border-left:1px solid #2c2c36;color:#e9e9f0;overflow:auto;padding:72px 18px 22px;text-align:left;cursor:default}
 .lb-meta .mh{display:none}
 .lb-meta .ms{margin-bottom:20px}
 .lb-meta .ml{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-size:12.5px;font-weight:700;color:#aeaebd;letter-spacing:.02em}
@@ -208,10 +209,10 @@ select.in{width:auto;min-width:140px}
 .lb-meta .mt{background:#0e0e13;border:1px solid #2c2c36;border-radius:10px;padding:11px 12px;font-size:13px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;-webkit-user-select:text;cursor:text}
 .lb-meta .mt.none{color:#8c8c9b;font-style:italic;user-select:none}
 .lb-metat{display:none}
-.lb-bar,.lb-strip{right:360px}
-.lb-nav.r{right:376px!important}
-.lb-img{max-width:calc(100vw - 360px - 150px)}
-@media (max-width:720px){
+.lb-bar,.lb-strip{right:var(--mw)}
+.lb-nav.r{right:calc(var(--mw) + 16px)!important}
+.lb-img{max-width:calc(100vw - var(--mw) - 150px)}
+@media (max-width:860px){
   .lb{padding-right:0}
   .lb-bar,.lb-strip{right:0}.lb-nav.r{right:16px!important}
   .lb-img{max-width:100vw}
